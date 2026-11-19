@@ -8,4 +8,4 @@ Static web app (installable on a phone). No build step.
 - Host on any HTTPS static host (GitHub Pages: Settings -> Pages -> Deploy from branch -> main / root)
 - Opening `index.html` from disk will not play videos; YouTube requires a real https page
 - Your library is stored in the browser on each device. Use Edit -> Export backup to save a copy.
-- If you block YouTube, allow `youtube-nocookie.com` (the embedded player) in your blocker.
+- If you block YouTube, allow the embedded player (`youtube.com/embed`) in your blocker. Sign in to YouTube in the same browser (Premium) to avoid ads.
