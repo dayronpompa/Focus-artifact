@@ -107,6 +107,12 @@ svg{display:block}
 .eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
 @keyframes eq{0%,100%{height:3px}50%{height:12px}}
 
+.resizer{display:none;flex:none;width:12px;margin:0 -6px;position:relative;z-index:4;cursor:col-resize;touch-action:none;outline:none}
+.resizer::after{content:"";position:absolute;left:5px;top:50%;width:2px;height:48px;margin-top:-24px;border-radius:2px;background:var(--line);transition:background .2s,height .2s,margin-top .2s}
+.resizer:hover::after,.resizer:focus-visible::after,.resizer.drag::after{background:var(--accent);height:72px;margin-top:-36px}
+body.resizing{cursor:col-resize;user-select:none}
+body.resizing iframe{pointer-events:none}
+
 /* Selection + bulk actions */
 .sel{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--muted);display:grid;place-items:center;color:transparent;transition:background .15s,border-color .15s}
 .sel svg{width:14px;height:14px}
@@ -143,8 +149,9 @@ svg{display:block}
 
 @media (min-width:900px){
   .app{flex-direction:row;padding-top:0}
-  .lib{order:1;flex:none;width:380px;border-right:1px solid var(--line)}
-  .stage{order:2;flex:1;background:var(--bg);display:flex;flex-direction:column;justify-content:center;padding:24px 40px;overflow:auto}
+  .lib{order:1;flex:none;width:var(--libw,380px);border-right:1px solid var(--line)}
+  .resizer{display:block;order:2}
+  .stage{order:3;flex:1;background:var(--bg);display:flex;flex-direction:column;justify-content:center;padding:24px 40px;overflow:auto}
   .player{max-width:1100px;margin:0 auto;border-radius:16px;overflow:hidden}
   .now,.controls{width:100%;max-width:1100px;margin:0 auto;padding-left:0;padding-right:0}
   .sheet-bg{align-items:center}
@@ -174,7 +181,7 @@ svg{display:block}
     </div>
   </section>
 
-  <aside class="lib">
+  <aside class="lib" id="lib">
     <div class="lib-head">
       <h1>Library</h1>
       <button class="btn" id="editBtn">Edit</button>
@@ -183,6 +190,7 @@ svg{display:block}
     <div id="folders"></div>
     <div class="bulk" id="bulk" hidden></div>
   </aside>
+  <div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize library" tabindex="0" title="Drag to resize · double-click to reset"></div>
 </div>
 
 <div class="sheet-bg" id="sheetBg">
@@ -982,6 +990,36 @@ $('sleep').addEventListener('click', () => {
   sleepEnd = SLEEP[sleepIdx] ? Date.now() + SLEEP[sleepIdx] * 60000 : 0;
   updSleep();
 });
+/* Resizable library (desktop): drag the divider, arrow keys, or double-click to reset */
+(function(){
+  const KEY = 'focus-libw', MIN = 260, DEF = 380;
+  const root = document.documentElement, rz = $('resizer'), lib = $('lib');
+  const max = () => Math.max(MIN + 40, Math.min(720, window.innerWidth - 420));
+  const clamp = w => Math.round(Math.max(MIN, Math.min(max(), w)));
+  const apply = w => root.style.setProperty('--libw', w + 'px');
+  const store = w => { try { localStorage.setItem(KEY, String(w)); } catch(e){} };
+  try { const w = parseInt(localStorage.getItem(KEY), 10); if (w) apply(clamp(w)); } catch(e){}
+  rz.addEventListener('pointerdown', e => {
+    e.preventDefault(); rz.setPointerCapture(e.pointerId);
+    rz.classList.add('drag'); document.body.classList.add('resizing');
+    const left = lib.getBoundingClientRect().left;
+    const move = ev => apply(clamp(ev.clientX - left));
+    const up = () => {
+      rz.classList.remove('drag'); document.body.classList.remove('resizing');
+      rz.removeEventListener('pointermove', move); rz.removeEventListener('pointerup', up); rz.removeEventListener('pointercancel', up);
+      store(clamp(lib.getBoundingClientRect().width));
+    };
+    rz.addEventListener('pointermove', move); rz.addEventListener('pointerup', up); rz.addEventListener('pointercancel', up);
+  });
+  rz.addEventListener('dblclick', () => { apply(DEF); store(DEF); });
+  rz.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const w = clamp(lib.getBoundingClientRect().width + (e.key === 'ArrowRight' ? 24 : -24));
+    apply(w); store(w);
+  });
+  window.addEventListener('resize', () => { const w = lib.getBoundingClientRect().width; if (window.innerWidth >= 900 && w > max()) apply(clamp(w)); });
+})();
 $('editBtn').addEventListener('click', () => { editMode = !editMode; armed.clear(); if (!editMode) selected.clear(); renderNow(); renderFolders(); });
 $('addBtn').addEventListener('click', () => openSheet('video'));
 $('tabVideo').addEventListener('click', () => {
