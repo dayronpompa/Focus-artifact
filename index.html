@@ -26,7 +26,7 @@ button{cursor:pointer;border:0;background:none}
 svg{display:block}
 [hidden]{display:none !important}
 
-.app{height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.app{height:100dvh;overflow:hidden;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 
 /* Stage */
 .stage{flex:none;background:linear-gradient(180deg,#141a28 0%,#0f131c 100%);border-bottom:1px solid var(--line)}
@@ -38,7 +38,7 @@ svg{display:block}
 .now{padding:14px 16px 4px}
 .now-title{font-weight:650;font-size:18px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .now-sub{color:var(--muted);font-size:13px;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.controls{display:flex;align-items:center;gap:8px;padding:8px 16px 14px}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 16px 14px}
 .ib{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.07);display:grid;place-items:center;transition:background .2s}
 .ib:active{background:rgba(255,255,255,.14)}
 .ib svg{width:22px;height:22px}
@@ -46,6 +46,21 @@ svg{display:block}
 .chip{height:44px;padding:0 16px;border-radius:22px;background:rgba(255,255,255,.07);color:var(--muted);font-size:14px;font-weight:550;white-space:nowrap}
 .chip.on{background:rgba(143,176,255,.16);color:var(--accent)}
 .spacer{flex:1}
+
+/* Two videos at once */
+.deck{border-radius:16px;transition:box-shadow .2s}
+.stage.dual{max-height:64dvh;overflow-y:auto}
+.stage.dual .deck{margin:8px 10px 0;padding-bottom:2px}
+.stage.dual .ib{width:42px;height:42px}
+.stage.dual .controls{gap:6px;padding:8px 10px 12px}
+.stage.dual .chip{padding:0 12px;height:42px}
+.stage.dual .deck.target{box-shadow:inset 0 0 0 2px var(--accent);background:rgba(143,176,255,.06)}
+.stage.dual .deck .player{width:min(100%,calc(13dvh * 16 / 9));margin:8px auto 0;border-radius:10px;overflow:hidden}
+.stage.dual .now{padding:8px 14px 8px;cursor:pointer}
+.stage.dual .now-title{font-size:15px;-webkit-line-clamp:1}
+.stage.dual .bigplay{width:48px;height:48px}.stage.dual .bigplay svg{width:20px;height:20px}
+.stage.dual .empty{font-size:13px;padding:0 10px;text-align:center}
+.slotb{position:absolute;left:4px;top:4px;z-index:1;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:700;display:grid;place-items:center}
 
 /* Library */
 .lib{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
@@ -153,6 +168,8 @@ body.resizing iframe{pointer-events:none}
   .resizer{display:block;order:2}
   .stage{order:3;flex:1;background:var(--bg);display:flex;flex-direction:column;justify-content:center;padding:24px 40px;overflow:auto}
   .player{max-width:1100px;margin:0 auto;border-radius:16px;overflow:hidden}
+  .deck{width:100%;max-width:1100px;margin-left:auto;margin-right:auto}
+  .stage.dual .deck .player{width:min(100%,calc((50dvh - 140px) * 16 / 9))}
   .now,.controls{width:100%;max-width:1100px;margin:0 auto;padding-left:0;padding-right:0}
   .sheet-bg{align-items:center}
   .sheet{border-radius:22px}
@@ -166,16 +183,26 @@ body.resizing iframe{pointer-events:none}
 </head>
 <body>
 <div class="app">
-  <section class="stage">
-    <div class="player" id="player"></div>
-    <div class="now">
-      <div class="now-title" id="nowTitle">Nothing playing</div>
-      <div class="now-sub" id="nowSub"></div>
+  <section class="stage" id="stage">
+    <div class="deck" id="deck0">
+      <div class="player" id="player"></div>
+      <div class="now">
+        <div class="now-title" id="nowTitle">Nothing playing</div>
+        <div class="now-sub" id="nowSub"></div>
+      </div>
+    </div>
+    <div class="deck" id="deck1" hidden>
+      <div class="player" id="player2"></div>
+      <div class="now">
+        <div class="now-title" id="nowTitle2">Nothing playing</div>
+        <div class="now-sub" id="nowSub2"></div>
+      </div>
     </div>
     <div class="controls">
       <button class="ib" id="prev" aria-label="Previous video"></button>
       <button class="ib" id="next" aria-label="Next video"></button>
       <span class="spacer"></span>
+      <button class="chip" id="dual">2 videos</button>
       <button class="chip" id="loop">Loop</button>
       <button class="chip" id="sleep">Sleep timer</button>
     </div>
@@ -410,7 +437,7 @@ const STARTER = [
  }
 ];
 let state = defaults();
-let playing = false, editMode = false;
+let playing = false, playing2 = false, editMode = false, target = 0;
 
 function newNode(name, ic){ return { id:rid(), name, icon:ic || '📁', open:true, videos:[], children:[], channel:null }; }
 function defaults(){
@@ -420,7 +447,7 @@ function defaults(){
   sl.videos = SLEEP_SEED.map(v => ({ id:rid(), title:v.title, vid:v.vid, list:null, t:v.t }));
   const am = newNode('Ambient','🌌');
   am.videos = AMBIENT_SEED.map(v => ({ id:rid(), title:v.title, vid:v.vid, list:null, t:v.t }));
-  return { updated:0, loop:false, cur:null, folders:[ newNode('Focus','🎯'), am, sl, star ] };
+  return { updated:0, loop:false, dual:false, cur:null, cur2:null, folders:[ newNode('Focus','🎯'), am, sl, star ] };
 }
 const DEFAULT_ICONS = { focus:'🎯', sleep:'😴' };
 function normNode(f){
@@ -442,8 +469,9 @@ function normNode(f){
   return n;
 }
 function normalize(r){
-  const s = { updated:+r.updated || 0, loop:!!r.loop, cur:null, folders:(Array.isArray(r.folders) ? r.folders : []).map(normNode) };
+  const s = { updated:+r.updated || 0, loop:!!r.loop, dual:!!r.dual, cur:null, cur2:null, folders:(Array.isArray(r.folders) ? r.folders : []).map(normNode) };
   if (r.cur && r.cur.f && r.cur.v) s.cur = { f:String(r.cur.f), v:String(r.cur.v) };
+  if (r.cur2 && r.cur2.f && r.cur2.v) s.cur2 = { f:String(r.cur2.f), v:String(r.cur2.v) };
   return s;
 }
 function localLoad(){
@@ -475,11 +503,28 @@ function flatten(list, depth, trail, out){
 }
 function countAll(n){ return n.videos.length + n.children.reduce((a, c) => a + countAll(c), 0); }
 function contains(n, id){ return n.id === id || n.children.some(c => contains(c, id)); }
-function findCur(){
-  if (!state.cur) return null;
-  const r = findNode(state.cur.f); if (!r) return null;
-  const v = r.node.videos.find(x => x.id === state.cur.v); if (!v) return null;
+function curOf(slot){ return slot ? state.cur2 : state.cur; }
+function isPlaying(slot){ return slot ? playing2 : playing; }
+function activeSlot(){ return state.dual ? target : 0; }
+function slotOfVid(id){
+  if (state.cur && state.cur.v === id) return 0;
+  if (state.dual && state.cur2 && state.cur2.v === id) return 1;
+  return -1;
+}
+function findCur(slot){
+  const cur = curOf(slot || 0);
+  if (!cur) return null;
+  const r = findNode(cur.f); if (!r) return null;
+  const v = r.node.videos.find(x => x.id === cur.v); if (!v) return null;
   return { f:r.node, v };
+}
+function forgetVideo(id){
+  if (state.cur && state.cur.v === id){ state.cur = null; playing = false; showEmpty(0); }
+  if (state.cur2 && state.cur2.v === id){ state.cur2 = null; playing2 = false; if (state.dual) showEmpty(1); }
+}
+function forgetFolder(node){
+  if (state.cur && contains(node, state.cur.f)){ state.cur = null; playing = false; showEmpty(0); }
+  if (state.cur2 && contains(node, state.cur2.f)){ state.cur2 = null; playing2 = false; if (state.dual) showEmpty(1); }
 }
 
 /* ---------- YouTube links ---------- */
@@ -582,25 +627,27 @@ async function autoSync(force){
 }
 
 /* ---------- Playback ---------- */
-function showEmpty(){
-  const box = $('player'); box.replaceChildren();
-  const c = findCur();
+function showEmpty(slot){
+  if (slot === undefined){ showEmpty(0); if (state.dual) showEmpty(1); return; }
+  const box = $(slot ? 'player2' : 'player'); box.replaceChildren();
+  const c = findCur(slot);
   if (c){
     const b = h('button', { class:'bigplay', 'aria-label':'Play' });
     b.innerHTML = ICON.play;
-    b.addEventListener('click', () => play(c.f.id, c.v.id));
+    b.addEventListener('click', () => play(c.f.id, c.v.id, slot));
     box.append(h('div', { class:'empty' }, b));
   } else {
-    box.append(h('div', { class:'empty' }, 'Pick a video from your library'));
+    box.append(h('div', { class:'empty' }, state.dual ? 'Pick a video for player ' + (slot ? 'B' : 'A') : 'Pick a video from your library'));
   }
 }
-function play(fid, vid){
+function play(fid, vid, slot){
+  if (slot === undefined) slot = activeSlot();
   const r = findNode(fid); if (!r) return;
   const v = r.node.videos.find(x => x.id === vid); if (!v) return;
-  state.cur = { f:fid, v:vid };
-  playing = true;
+  if (slot){ state.cur2 = { f:fid, v:vid }; playing2 = true; } else { state.cur = { f:fid, v:vid }; playing = true; }
+  if (state.dual && !curOf(slot ? 0 : 1)) target = slot ? 0 : 1;
   save();
-  const box = $('player'); box.replaceChildren();
+  const box = $(slot ? 'player2' : 'player'); box.replaceChildren();
   box.append(h('iframe', {
     src:embedUrl(v), title:v.title, allowfullscreen:'',
     allow:'autoplay; encrypted-media; picture-in-picture; fullscreen',
@@ -608,21 +655,43 @@ function play(fid, vid){
   }));
   renderAll(false);
 }
-function stop(){ playing = false; showEmpty(); renderAll(false); }
+function stop(slot){
+  if (slot === undefined){ playing = false; playing2 = false; showEmpty(); }
+  else if (slot){ playing2 = false; showEmpty(1); } else { playing = false; showEmpty(0); }
+  renderAll(false);
+}
+function setDual(on){
+  state.dual = on;
+  if (on){ target = curOf(1) ? 0 : 1; }
+  else { state.cur2 = null; playing2 = false; $('player2').replaceChildren(); target = 0; }
+  save(); renderAll(false);
+  if (on) showEmpty(1);
+}
 function step(dir){
-  const c = findCur(); if (!c) return;
+  const slot = activeSlot();
+  const c = findCur(slot); if (!c) return;
   const list = c.f.videos; if (list.length < 2) return;
   const i = list.findIndex(x => x.id === c.v.id);
-  play(c.f.id, list[(i + dir + list.length) % list.length].id);
+  play(c.f.id, list[(i + dir + list.length) % list.length].id, slot);
 }
 
 /* ---------- Render ---------- */
 function renderNow(){
-  const c = findCur();
-  $('nowTitle').textContent = c ? c.v.title : 'Nothing playing';
-  $('nowSub').textContent = c ? (c.f.icon || '📁') + ' ' + c.f.name + (playing ? '' : ' · paused') : '';
-  const many = c && c.f.videos.length > 1;
+  const dual = !!state.dual;
+  $('deck1').hidden = !dual;
+  $('stage').classList.toggle('dual', dual);
+  for (const sl of (dual ? [0, 1] : [0])){
+    const c = findCur(sl), pl = isPlaying(sl);
+    $(sl ? 'nowTitle2' : 'nowTitle').textContent = c ? c.v.title : 'Nothing playing';
+    const tag = dual ? (sl ? 'B' : 'A') + (c ? ' · ' : ' · empty') : '';
+    $(sl ? 'nowSub2' : 'nowSub').textContent = tag + (c ? (c.f.icon || '📁') + ' ' + c.f.name + (pl ? '' : ' · paused') : '');
+  }
+  $('deck0').classList.toggle('target', dual && target === 0);
+  $('deck1').classList.toggle('target', dual && target === 1);
+  const ct = findCur(activeSlot());
+  const many = ct && ct.f.videos.length > 1;
   $('prev').disabled = !many; $('next').disabled = !many;
+  $('dual').classList.toggle('on', dual);
   $('loop').classList.toggle('on', state.loop);
   $('loop').textContent = state.loop ? 'Loop on' : 'Loop';
   $('editBtn').classList.toggle('on', editMode);
@@ -677,10 +746,12 @@ function renderNode(f, depth){
   for (const c of f.children) fc.append(renderNode(c, depth + 1));
   if (!f.children.length && !f.videos.length) fc.append(h('div', { class:'none' }, 'Empty.'));
   for (const v of f.videos){
-    const isCur = state.cur && state.cur.v === v.id;
+    const rowSlot = slotOfVid(v.id);
+    const isCur = rowSlot >= 0;
     const ic = h('span', { class:'ic' });
-    ic.innerHTML = (isCur && playing) ? ICON.eq : ICON.play;
+    ic.innerHTML = (isCur && isPlaying(rowSlot)) ? ICON.eq : ICON.play;
     const thumb = h('span', { class:'thumb' });
+    if (state.dual && isCur) thumb.append(h('span', { class:'slotb' }, rowSlot ? 'B' : 'A'));
     if (v.vid){
       const im = h('img', { src:'https://i.ytimg.com/vi/' + v.vid + '/mqdefault.jpg', alt:'', loading:'lazy', decoding:'async', referrerpolicy:'no-referrer' });
       im.addEventListener('error', () => im.remove());
@@ -727,7 +798,7 @@ function renderFolders(){
 }
 function renderAll(withPlayer){
   renderNow(); renderFolders();
-  if (withPlayer !== false && !playing) showEmpty();
+  if (withPlayer !== false){ if (!playing) showEmpty(0); if (state.dual && !playing2) showEmpty(1); }
 }
 
 /* ---------- Edit ---------- */
@@ -747,6 +818,7 @@ function moveVideos(ids, dest){
     hit.folder.videos = hit.folder.videos.filter(y => y.id !== id);
     dest.videos.push(hit.video);
     if (state.cur && state.cur.v === id) state.cur.f = dest.id;
+    if (state.cur2 && state.cur2.v === id) state.cur2.f = dest.id;
     n++;
   }
   if (n) dest.open = true;
@@ -757,7 +829,7 @@ function deleteSelected(){
   for (const id of ids){
     const hit = findVideo(id); if (!hit) continue;
     hit.folder.videos = hit.folder.videos.filter(y => y.id !== id);
-    if (state.cur && state.cur.v === id){ state.cur = null; playing = false; showEmpty(); }
+    forgetVideo(id);
   }
   selected.clear(); save(); renderAll(false);
   toast('Deleted ' + ids.length + (ids.length > 1 ? ' videos' : ' video'));
@@ -777,14 +849,13 @@ function renderBulk(){
 }
 function deleteVideo(fid, vid){
   const r = findNode(fid); if (!r) return;
-  const wasCur = state.cur && state.cur.v === vid;
   r.node.videos = r.node.videos.filter(v => v.id !== vid);
-  if (wasCur){ state.cur = null; playing = false; showEmpty(); }
+  forgetVideo(vid);
   save(); renderAll(false);
 }
 function deleteFolder(fid){
   const r = findNode(fid); if (!r) return;
-  if (state.cur && contains(r.node, state.cur.f)){ state.cur = null; playing = false; showEmpty(); }
+  forgetFolder(r.node);
   const i = r.list.indexOf(r.node); if (i >= 0) r.list.splice(i, 1);
   save(); renderAll(false);
 }
@@ -804,7 +875,7 @@ function importBackup(file){
       const r = normalize(JSON.parse(String(rd.result)));
       if (!r.folders.length) throw new Error('empty');
       state = r; state.updated = Date.now(); localSave();
-      playing = false; showEmpty(); renderAll(false); toast('Backup restored');
+      playing = false; playing2 = false; target = 0; showEmpty(); renderAll(false); toast('Backup restored');
     } catch(e){ toast('That file is not a Focus Library backup.'); }
   };
   rd.readAsText(file);
@@ -970,7 +1041,7 @@ function tick(){
   if (!sleepEnd) return;
   if (Date.now() >= sleepEnd){
     sleepEnd = 0; sleepIdx = 0; updSleep();
-    if (playing){ stop(); toast('Sleep timer ended. Playback stopped.'); }
+    if (playing || playing2){ stop(); toast('Sleep timer ended. Playback stopped.'); }
     return;
   }
   updSleep();
@@ -982,8 +1053,13 @@ $('prev').addEventListener('click', () => step(-1));
 $('next').addEventListener('click', () => step(1));
 $('loop').addEventListener('click', () => {
   state.loop = !state.loop; save();
-  const c = findCur();
-  if (playing && c) play(c.f.id, c.v.id); else renderNow();
+  const sl = activeSlot(), c = findCur(sl);
+  if (isPlaying(sl) && c) play(c.f.id, c.v.id, sl); else renderNow();
+});
+$('dual').addEventListener('click', () => setDual(!state.dual));
+for (const sl of [0, 1]) $('deck' + sl).addEventListener('click', e => {
+  if (!state.dual || e.target.closest('button')) return;
+  target = sl; renderNow();
 });
 $('sleep').addEventListener('click', () => {
   sleepIdx = (sleepIdx + 1) % SLEEP.length;
