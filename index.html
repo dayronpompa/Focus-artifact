@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0c10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Focus">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<title>Focus Library</title>
+<style>
+:root{
+  --bg:#0a0c10; --panel:#11141b; --card:#161a23; --line:#232836;
+  --text:#e9ecf3; --muted:#8b93a7; --accent:#8fb0ff; --accent-ink:#0a1020; --danger:#ff8a94;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+svg{display:block}
+[hidden]{display:none !important}
+
+.app{height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+
+/* Stage */
+.stage{flex:none;background:var(--panel)}
+.player{position:relative;width:100%;aspect-ratio:16/9;background:#000}
+.player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:15px}
+.bigplay{width:72px;height:72px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
+.bigplay svg{width:30px;height:30px;margin-left:4px}
+.now{padding:12px 16px 4px}
+.now-title{font-weight:600;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now-sub{color:var(--muted);font-size:13px;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.controls{display:flex;align-items:center;gap:8px;padding:8px 16px 14px}
+.ib{width:48px;height:48px;border-radius:14px;background:var(--card);display:grid;place-items:center}
+.ib svg{width:22px;height:22px}
+.ib:disabled{opacity:.35}
+.chip{height:48px;padding:0 16px;border-radius:14px;background:var(--card);color:var(--muted);font-size:14px;white-space:nowrap}
+.chip.on{background:rgba(143,176,255,.16);color:var(--accent)}
+.spacer{flex:1}
+
+/* Library */
+.lib{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.lib-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+.lib-head h1{flex:1;margin:0;font-size:20px;font-weight:650;letter-spacing:.2px}
+.btn{height:44px;padding:0 16px;border-radius:12px;background:var(--card);font-weight:550}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.on{background:rgba(143,176,255,.16);color:var(--accent)}
+
+.folder{margin:10px 12px 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.folder.sub{margin:8px 10px 8px 26px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.folder.sub .folder.sub{background:var(--panel)}
+.fhead{display:flex;align-items:center;gap:8px;min-height:56px;padding:0 12px 0 14px;cursor:pointer;user-select:none}
+.fhead .chev{width:18px;height:18px;flex:none;color:var(--muted);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.folder.open > .fhead .chev{transform:rotate(90deg)}
+.ficon{flex:none;width:28px;text-align:center;font-size:21px;line-height:1}
+.fname{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcount{color:var(--muted);font-size:13px}
+.fedit,.vedit{display:flex;flex-wrap:wrap;gap:8px}
+.fedit{padding:0 14px 12px}
+.vedit{margin-top:6px}
+.mini{height:40px;padding:0 12px;border-radius:10px;font-size:14px;color:var(--muted);background:var(--bg)}
+.folder.sub .mini{background:var(--panel)}
+.mini.danger{color:var(--danger)}
+/* Smooth open/close: animate the row height from 0fr to 1fr, fade the content */
+.fbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .34s cubic-bezier(.4,0,.2,1)}
+.folder.open > .fbody{grid-template-rows:1fr}
+.fin{min-height:0;overflow:hidden}
+.fc{border-top:1px solid var(--line);opacity:0;transform:translateY(-6px);
+  transition:opacity .22s ease, transform .34s cubic-bezier(.4,0,.2,1)}
+.folder.open > .fbody > .fin > .fc{opacity:1;transform:none;transition-delay:.05s}
+@media (prefers-reduced-motion:reduce){
+  .fbody,.fc,.fhead .chev{transition:none !important}
+}
+.vid{display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 12px 8px 16px;cursor:pointer}
+.vid + .vid{border-top:1px solid var(--line)}
+.vid:active{background:var(--card)}
+.vid .ic{width:30px;height:30px;border-radius:50%;background:var(--card);color:var(--muted);display:grid;place-items:center;flex:none}
+.folder.sub .vid .ic{background:var(--bg)}
+.vid .ic svg{width:14px;height:14px;margin-left:1px}
+.vid.cur .ic{background:rgba(143,176,255,.18);color:var(--accent)}
+.vid.cur .vn{color:var(--accent)}
+.vt{flex:1;min-width:0;display:flex;flex-direction:column}
+.vn{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:15px}
+.vs{color:var(--muted);font-size:12px}
+.none{padding:16px;color:var(--muted);font-size:14px}
+.hint{padding:32px 20px;text-align:center;color:var(--muted)}
+.tools{display:flex;gap:8px;padding:10px 12px 0}
+.tools .mini{background:var(--panel)}
+.newfolder{display:block;width:calc(100% - 24px);margin:12px 12px 0;height:56px;border-radius:16px;border:1px dashed var(--line);color:var(--accent);font-weight:600}
+.newfolder:active{background:var(--panel)}
+.eq{display:flex;gap:2px;align-items:flex-end;height:12px}
+.eq i{width:3px;background:currentColor;border-radius:1px;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{0%,100%{height:3px}50%{height:12px}}
+
+/* Sheet */
+.sheet-bg{position:fixed;inset:0;z-index:10;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.6)}
+.sheet-bg.open{display:flex}
+.sheet{width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;background:var(--panel);border-radius:22px 22px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--bg);border-radius:14px}
+.tabs button{flex:1;height:40px;border-radius:10px;color:var(--muted);font-weight:550}
+.tabs button.on{background:var(--card);color:var(--text)}
+.sheet h2{margin:0;font-size:18px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select{height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);outline:none;width:100%;appearance:none;-webkit-appearance:none}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.note{font-size:12px;color:var(--muted)}
+.icons{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;max-height:132px;overflow-y:auto;padding:2px}
+.icons button{height:40px;border-radius:10px;background:var(--bg);font-size:21px;line-height:1}
+.icons button.on{background:rgba(143,176,255,.2);outline:2px solid var(--accent)}
+.err{color:var(--danger);font-size:13px}
+.err:empty{display:none}
+.row{display:flex;gap:8px}
+.row .btn{flex:1;height:50px}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:12px 18px;border-radius:14px;font-size:14px;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+
+@media (min-width:900px){
+  .app{flex-direction:row;padding-top:0}
+  .lib{order:1;flex:none;width:380px;border-right:1px solid var(--line)}
+  .stage{order:2;flex:1;background:var(--bg);display:flex;flex-direction:column;justify-content:center;padding:24px 40px;overflow:auto}
+  .player{max-width:1100px;margin:0 auto;border-radius:16px;overflow:hidden}
+  .now,.controls{width:100%;max-width:1100px;margin:0 auto;padding-left:0;padding-right:0}
+  .sheet-bg{align-items:center}
+  .sheet{border-radius:22px}
+}
+@media (orientation:landscape) and (max-height:520px) and (max-width:899px){
+  .app{flex-direction:row;padding-left:env(safe-area-inset-left)}
+  .stage{width:56%;overflow-y:auto}
+  .lib{border-left:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="stage">
+    <div class="player" id="player"></div>
+    <div class="now">
+      <div class="now-title" id="nowTitle">Nothing playing</div>
+      <div class="now-sub" id="nowSub"></div>
+    </div>
+    <div class="controls">
+      <button class="ib" id="prev" aria-label="Previous video"></button>
+      <button class="ib" id="next" aria-label="Next video"></button>
+      <span class="spacer"></span>
+      <button class="chip" id="loop">Loop</button>
+      <button class="chip" id="sleep">Sleep timer</button>
+    </div>
+  </section>
+
+  <aside class="lib">
+    <div class="lib-head">
+      <h1>Library</h1>
+      <button class="btn" id="editBtn">Edit</button>
+      <button class="btn primary" id="addBtn">+ Add</button>
+    </div>
+    <div id="folders"></div>
+  </aside>
+</div>
+
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="tabs" id="tabs">
+      <button id="tabVideo" class="on">Video</button>
+      <button id="tabFolder">Folder</button>
+    </div>
+    <h2 id="sheetTitle" hidden></h2>
+
+    <div class="field" id="fUrl"><label for="url">YouTube link</label>
+      <input id="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a YouTube link"></div>
+    <div class="field" id="fTitle"><label for="title">Title</label>
+      <input id="title" type="text" autocomplete="off" placeholder="Filled in from the link"></div>
+    <div class="field" id="fFolder"><label for="fsel">Folder</label>
+      <select id="fsel"></select></div>
+
+    <div class="field" id="fName"><label for="fname">Folder name</label>
+      <input id="fname" type="text" autocomplete="off" placeholder="e.g. Lo-fi"></div>
+    <div class="field" id="fIcons"><label>Icon</label><div class="icons" id="icons"></div></div>
+    <div class="field" id="fParent"><label for="psel">Inside</label>
+      <select id="psel"></select></div>
+    <div class="field" id="fChan"><label for="chan">Auto-add from channel (optional)</label>
+      <select id="chan"></select>
+      <span class="note" id="chanNote"></span></div>
+
+    <div class="err" id="err"></div>
+    <div class="row">
+      <button class="btn" id="cancel">Cancel</button>
+      <button class="btn primary" id="save">Save</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const rid = () => Math.random().toString(36).slice(2,10);
+
+const ICON = {
+  play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+  prev:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12 18 18V6z"/></svg>',
+  next:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>',
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+  eq:'<span class="eq"><i></i><i></i><i></i></span>'
+};
+const EMOJI = ['📁','🎧','🎵','🎶','🎼','🎹','🎸','🎻','🥁','🎙️','📻','📚','🧠','💼','💻','⚡',
+  '🔥','🎯','🧘','🌙','😴','🌧️','🌊','🌲','☕','🏋️','🏃','🍳','🎬','🙏','📖','🌅',
+  '🧪','💡','⭐','❤️','🎮','🧩','🧭','📈'];
+const FIRST_SYNC = 10;            // episodes added the first time a channel is linked
+
+function h(tag, props, ...kids){
+  const e = document.createElement(tag);
+  for (const k in (props||{})){
+    const v = props[k];
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()){
+    if (c == null || c === false) continue;
+    e.append(c.nodeType ? c : document.createTextNode(c));
+  }
+  return e;
+}
+function icon(html){ const s = document.createElement('span'); s.innerHTML = html; return s.firstChild; }
+
+/* ---------- State ---------- */
+const LS_KEY = 'focus-library.v1';
+const AMBIENT_SEED = [
+ {
+  "vid": "9kbEhzk-ZQs",
+  "t": 0,
+  "title": "130 // Snowward - 1 Hour Snowbound Ambient Soundfield"
+ },
+ {
+  "vid": "yZ5S9gbcVuo",
+  "t": 0,
+  "title": "128 // Gantry - 1 Hour Foggy Dark Ambient Soundfield"
+ },
+ {
+  "vid": "RcUuZBUEYbk",
+  "t": 2,
+  "title": "123 // Tether - 1 Hour Ambient Soundfield"
+ },
+ {
+  "vid": "8FK6uXlm6qg",
+  "t": 0,
+  "title": "117 // Keystone - 1 Hour Cavern Ambient Soundfield"
+ },
+ {
+  "vid": "9VVNqLaaGrI",
+  "t": 0,
+  "title": "107 // Chroma Horizon - 1 Hour Harmonic Ambient Soundfield"
+ },
+ {
+  "vid": "d-gD74otTfk",
+  "t": 0,
+  "title": "108 // Defect: 4 - 1 Hour Minimal Dark Ambient Soundfield"
+ },
+ {
+  "vid": "64DVaYGCNwk",
+  "t": 0,
+  "title": "099 // Failsafe - 1 Hour Immersive Dark Ambient Soundfield"
+ },
+ {
+  "vid": "3gk71_WuV9U",
+  "t": 0,
+  "title": "087 // Sky Reacher - 1 Hour Calming Liminal Ambient Soundfield"
+ },
+ {
+  "vid": "UubNhOkZp5Y",
+  "t": 241,
+  "title": "075 // Snow Torch - 1 Hour Blizzard Ambient Soundfield"
+ },
+ {
+  "vid": "0eEPFASP500",
+  "t": 2575,
+  "title": "046 // Aqua Genesis - 1 Hour Underwater Ambient Soundfield"
+ },
+ {
+  "vid": "qg0M7Ui48v0",
+  "t": 0,
+  "title": "035 // Violet Bind - 1 Hour Violet Liminal Ambient Soundfield"
+ },
+ {
+  "vid": "oaExU0D1hB0",
+  "t": 10,
+  "title": "014 // The Veiled Monolith - 1 Hour Calm Ambient Soundfield"
+ },
+ {
+  "vid": "rbzKssUlMvw",
+  "t": 0,
+  "title": "042 // Monolith's Tail - 1 Hour Calming Ambient Soundfield"
+ }
+];
+const SLEEP_SEED = [
+ {
+  "vid": "7F8RgSgXkRs",
+  "t": 822,
+  "title": "the DEEPEST ear cleaning ⭐ ASMR [ ear pick, scraping, wipes, oil ear massage, ear cupping]"
+ },
+ {
+  "vid": "1cIt-961fjY",
+  "t": 0,
+  "title": "I'll be here working but you should get some rest ✨ ASMR [soft spoken, head pats, typing, low light]"
+ },
+ {
+  "vid": "-unaJP8Pt1g",
+  "t": 0,
+  "title": "Detailed cranial nerve exam, but you can lay down the whole time [ASMR]"
+ },
+ {
+  "vid": "8ZIFz1lRCww",
+  "t": 0,
+  "title": "Just ASMR 😌✨💕 [ whispers, tapping, scratching]"
+ },
+ {
+  "vid": "ji4mp-Xyw7U",
+  "t": 19,
+  "title": "ASMR 💫 Mystery Medical Exam [ questions, eye check, this or that , latex gloves ]"
+ },
+ {
+  "vid": "7gFe3-9p3rY",
+  "t": 0,
+  "title": "Sleepy Eye Check Up 👁️👄👁️ ASMR [soft spoken]"
+ },
+ {
+  "vid": "IP2oyNiKyg4",
+  "t": 0,
+  "title": "FOCUS! Yes, there will be a quiz 😌 ASMR"
+ }
+];
+const STARTER = [
+ {
+  "vid": "OXB251U68E0",
+  "t": 5156,
+  "title": "Why the New Age \"Works\" and Why You Should Care | with Taylor Welch"
+ },
+ {
+  "vid": "_CkuygjcL8s",
+  "t": 1823,
+  "title": "Correcting Timelines (retroactive prayer, soul fragments, & consciousness) w/Dan Duval"
+ },
+ {
+  "vid": "qgNhWm2cun4",
+  "t": 0,
+  "title": "The Laws of Sowing & Reaping (time barriers, tending, & impatience)"
+ },
+ {
+  "vid": "1qeZRfbjoIk",
+  "t": 8085,
+  "title": "How to Become Hungry for God (the system)"
+ },
+ {
+  "vid": "49k8hUltCVw",
+  "t": 6278,
+  "title": "Discovering your Spiritual Gifts (dormant gifts, domains, & callings)"
+ },
+ {
+  "vid": "p6KceXKGrX4",
+  "t": 0,
+  "title": "The Age of Counterfeits (Christian witches & warlocks, self-cursing spells, & sorcery)"
+ },
+ {
+  "vid": "Ap4wBQWVSSg",
+  "t": 0,
+  "title": "The Mechanics of Manifestation (visualization, real faith, & divine partnership)"
+ },
+ {
+  "vid": "QmpXD7PDGsc",
+  "t": 9,
+  "title": "The Blockers of Inheritance (trauma, disobedience, & disqualification)"
+ }
+];
+let state = defaults();
+let playing = false, editMode = false;
+
+function newNode(name, ic){ return { id:rid(), name, icon:ic || '📁', open:true, videos:[], children:[], channel:null }; }
+function defaults(){
+  const star = newNode('Starter', '⭐');
+  star.videos = STARTER.map(v => ({ id:rid(), title:v.title, vid:v.vid, list:null, t:v.t }));
+  const sl = newNode('Sleep','😴');
+  sl.videos = SLEEP_SEED.map(v => ({ id:rid(), title:v.title, vid:v.vid, list:null, t:v.t }));
+  const am = newNode('Ambient','🌌');
+  am.videos = AMBIENT_SEED.map(v => ({ id:rid(), title:v.title, vid:v.vid, list:null, t:v.t }));
+  return { updated:0, loop:false, cur:null, folders:[ newNode('Focus','🎯'), am, sl, star ] };
+}
+const DEFAULT_ICONS = { focus:'🎯', sleep:'😴' };
+function normNode(f){
+  const n = {
+    id:String(f.id || rid()), name:String(f.name || 'Folder'),
+    icon:typeof f.icon === 'string' && f.icon ? f.icon : (DEFAULT_ICONS[String(f.name||'').toLowerCase()] || '📁'),
+    open:f.open !== false,
+    videos:(Array.isArray(f.videos) ? f.videos : []).map(v => ({
+      id:String(v.id || rid()), title:String(v.title || 'Untitled'),
+      vid:v.vid || null, list:v.list || null, t:+v.t || 0
+    })).filter(v => v.vid || v.list),
+    children:(Array.isArray(f.children) ? f.children : []).map(normNode),
+    channel:null
+  };
+  if (f.channel && f.channel.ref) n.channel = {
+    ref:String(f.channel.ref), last:+f.channel.last || 0,
+    seen:Array.isArray(f.channel.seen) ? f.channel.seen.map(String).slice(-400) : []
+  };
+  return n;
+}
+function normalize(r){
+  const s = { updated:+r.updated || 0, loop:!!r.loop, cur:null, folders:(Array.isArray(r.folders) ? r.folders : []).map(normNode) };
+  if (r.cur && r.cur.f && r.cur.v) s.cur = { f:String(r.cur.f), v:String(r.cur.v) };
+  return s;
+}
+function localLoad(){
+  try { const raw = localStorage.getItem(LS_KEY); if (raw) return normalize(JSON.parse(raw)); } catch(e){}
+  return null;
+}
+function localSave(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){} }
+
+function save(){ state.updated = Date.now(); localSave(); }
+
+/* ---------- Tree helpers ---------- */
+function findNode(id, list){
+  list = list || state.folders;
+  for (const n of list){
+    if (n.id === id) return { node:n, list };
+    const r = findNode(id, n.children);
+    if (r) return r;
+  }
+  return null;
+}
+function flatten(list, depth, trail, out){
+  out = out || []; depth = depth || 0; trail = trail || [];
+  for (const n of list){
+    const t = trail.concat(n.name);
+    out.push({ node:n, depth, label:(n.icon || '📁') + ' ' + t.join(' › ') });
+    flatten(n.children, depth + 1, t, out);
+  }
+  return out;
+}
+function countAll(n){ return n.videos.length + n.children.reduce((a, c) => a + countAll(c), 0); }
+function contains(n, id){ return n.id === id || n.children.some(c => contains(c, id)); }
+function findCur(){
+  if (!state.cur) return null;
+  const r = findNode(state.cur.f); if (!r) return null;
+  const v = r.node.videos.find(x => x.id === state.cur.v); if (!v) return null;
+  return { f:r.node, v };
+}
+
+/* ---------- YouTube links ---------- */
+function parseT(s){
+  if (!s) return 0;
+  if (/^\d+$/.test(s)) return +s;
+  const m = s.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  return m ? (+m[1]||0)*3600 + (+m[2]||0)*60 + (+m[3]||0) : 0;
+}
+function parseYT(input){
+  let s = (input||'').trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)){
+    if (/^[\w-]{11}$/.test(s)) return { vid:s, list:null, t:0 };
+    s = 'https://' + s;
+  }
+  let u; try { u = new URL(s); } catch(e){ return null; }
+  const host = u.hostname.replace(/^(www\.|m\.)/, '');
+  let vid = null, list = u.searchParams.get('list') || null;
+  if (host === 'youtu.be') vid = u.pathname.slice(1).split('/')[0];
+  else if (host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')){
+    if (u.pathname === '/watch') vid = u.searchParams.get('v');
+    else { const m = u.pathname.match(/^\/(shorts|embed|live|v)\/([\w-]{11})/); if (m) vid = m[2]; }
+  } else return null;
+  if (vid && !/^[\w-]{11}$/.test(vid)) vid = null;
+  if (list && !/^[\w-]+$/.test(list)) list = null;
+  if (list && /^RD/.test(list)) list = null;
+  if (!vid && !list) return null;
+  return { vid, list, t:parseT(u.searchParams.get('t') || u.searchParams.get('start')) };
+}
+function embedUrl(v){
+  const p = new URLSearchParams({ autoplay:'1', playsinline:'1', rel:'0', modestbranding:'1' });
+  let base;
+  if (!v.vid){ base = 'https://www.youtube-nocookie.com/embed/videoseries'; p.set('list', v.list); }
+  else {
+    base = 'https://www.youtube-nocookie.com/embed/' + v.vid;
+    if (v.list) p.set('list', v.list);
+    if (v.t) p.set('start', String(v.t));
+  }
+  if (state.loop){ p.set('loop','1'); if (v.vid && !v.list) p.set('playlist', v.vid); }
+  return base + '?' + p.toString();
+}
+
+/* ---------- Titles and channel feeds ---------- */
+async function fetchJson(url, ms){
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms || 6000);
+  try {
+    const r = await fetch(url, { signal:ctl.signal, cache:'no-store' });
+    if (!r.ok) throw new Error('http ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+const titleCache = {};
+async function fetchTitle(vid){
+  if (titleCache[vid]) return titleCache[vid];
+  const watch = 'https://www.youtube.com/watch?v=' + vid;
+  const urls = [
+    'https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(watch),
+    'https://noembed.com/embed?url=' + encodeURIComponent(watch)
+  ];
+  for (const u of urls){
+    try { const j = await fetchJson(u); if (j && j.title){ titleCache[vid] = String(j.title); return titleCache[vid]; } }
+    catch(e){}
+  }
+  return null;
+}
+let feedsP = null;
+function loadFeeds(force){
+  if (!feedsP || force) feedsP = fetchJson('feeds.json', 6000)
+    .then(j => (j && j.channels) ? j : { channels:{} })
+    .catch(() => ({ channels:{} }));
+  return feedsP;
+}
+const syncing = new Set();
+async function syncNode(f){
+  if (!f.channel || syncing.has(f.id)) return 0;
+  syncing.add(f.id);
+  try {
+    const feeds = await loadFeeds();
+    const ch = feeds.channels[f.channel.ref];
+    if (!ch || !Array.isArray(ch.videos)) return 0;
+    const vids = ch.videos.filter(v => v && v.id);
+    const seen = new Set(f.channel.seen || []);
+    const fresh = vids.filter(v => !seen.has(v.id));
+    const add = f.channel.last ? fresh : fresh.slice(0, FIRST_SYNC);   // feed is newest first
+    f.videos = add.map(v => ({ id:rid(), title:String(v.title || 'Untitled'), vid:v.id, list:null, t:0 })).concat(f.videos);
+    for (const v of vids) seen.add(v.id);
+    f.channel.seen = Array.from(seen).slice(-400);
+    f.channel.last = Date.now();
+    save();
+    return add.length;
+  } finally { syncing.delete(f.id); }
+}
+async function autoSync(force){
+  if (force) await loadFeeds(true);
+  let total = 0;
+  for (const x of flatten(state.folders)){ if (x.node.channel) total += await syncNode(x.node); }
+  if (total){ renderAll(false); toast(total + ' new video' + (total > 1 ? 's' : '')); }
+}
+
+/* ---------- Playback ---------- */
+function showEmpty(){
+  const box = $('player'); box.replaceChildren();
+  const c = findCur();
+  if (c){
+    const b = h('button', { class:'bigplay', 'aria-label':'Play' });
+    b.innerHTML = ICON.play;
+    b.addEventListener('click', () => play(c.f.id, c.v.id));
+    box.append(h('div', { class:'empty' }, b));
+  } else {
+    box.append(h('div', { class:'empty' }, 'Pick a video from your library'));
+  }
+}
+function play(fid, vid){
+  const r = findNode(fid); if (!r) return;
+  const v = r.node.videos.find(x => x.id === vid); if (!v) return;
+  state.cur = { f:fid, v:vid };
+  playing = true;
+  save();
+  const box = $('player'); box.replaceChildren();
+  box.append(h('iframe', {
+    src:embedUrl(v), title:v.title, allowfullscreen:'',
+    allow:'autoplay; encrypted-media; picture-in-picture; fullscreen',
+    referrerpolicy:'strict-origin-when-cross-origin'
+  }));
+  renderAll(false);
+}
+function stop(){ playing = false; showEmpty(); renderAll(false); }
+function step(dir){
+  const c = findCur(); if (!c) return;
+  const list = c.f.videos; if (list.length < 2) return;
+  const i = list.findIndex(x => x.id === c.v.id);
+  play(c.f.id, list[(i + dir + list.length) % list.length].id);
+}
+
+/* ---------- Render ---------- */
+function renderNow(){
+  const c = findCur();
+  $('nowTitle').textContent = c ? c.v.title : 'Nothing playing';
+  $('nowSub').textContent = c ? (c.f.icon || '📁') + ' ' + c.f.name + (playing ? '' : ' · paused') : '';
+  const many = c && c.f.videos.length > 1;
+  $('prev').disabled = !many; $('next').disabled = !many;
+  $('loop').classList.toggle('on', state.loop);
+  $('loop').textContent = state.loop ? 'Loop on' : 'Loop';
+  $('editBtn').classList.toggle('on', editMode);
+  $('editBtn').textContent = editMode ? 'Done' : 'Edit';
+}
+const armed = new Set();
+function confirmBtn(key, label, onGo){
+  const b = h('button', { class:'mini danger' }, label);
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    if (armed.has(key)){ armed.delete(key); onGo(); return; }
+    armed.add(key); b.textContent = 'Sure?';
+    setTimeout(() => { if (armed.delete(key)) b.textContent = label; }, 3000);
+  });
+  return b;
+}
+function mini(label, fn){ return h('button', { class:'mini', onclick:ev => { ev.stopPropagation(); fn(); } }, label); }
+
+function renderNode(f, depth){
+  const head = h('div', { class:'fhead', role:'button', tabindex:'0' },
+    icon(ICON.chev),
+    h('span', { class:'ficon' }, f.icon || '📁'),
+    h('span', { class:'fname' }, f.name),
+    h('span', { class:'fcount' }, String(countAll(f)))
+  );
+  let wrap = null;
+  const toggle = () => { f.open = !f.open; if (wrap) wrap.classList.toggle('open', f.open); save(); };
+  head.addEventListener('click', toggle);
+  head.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
+
+  let edit = null;
+  if (editMode){
+    edit = h('div', { class:'fedit' },
+      mini('Rename', () => openSheet('renamefolder', { id:f.id })),
+      mini('+ Subfolder', () => openSheet('folder', { parent:f.id })),
+      f.channel ? mini('Sync now', async () => {
+        await loadFeeds(true);
+        const c = await syncNode(f);
+        renderAll(false); toast(c ? c + ' new video' + (c > 1 ? 's' : '') : 'Already up to date');
+      }) : null,
+      confirmBtn('f' + f.id, 'Delete', () => deleteFolder(f.id))
+    );
+  }
+
+  const fc = h('div', { class:'fc' });
+  const body = h('div', { class:'fbody' }, h('div', { class:'fin' }, fc));
+  for (const c of f.children) fc.append(renderNode(c, depth + 1));
+  if (!f.children.length && !f.videos.length) fc.append(h('div', { class:'none' }, 'Empty.'));
+  for (const v of f.videos){
+    const isCur = state.cur && state.cur.v === v.id;
+    const ic = h('span', { class:'ic' });
+    ic.innerHTML = (isCur && playing) ? ICON.eq : ICON.play;
+    const row = h('div', { class:'vid' + (isCur ? ' cur' : ''), role:'button', tabindex:'0' },
+      ic,
+      h('span', { class:'vt' },
+        h('span', { class:'vn' }, v.title),
+        (!v.vid && v.list) ? h('span', { class:'vs' }, 'Playlist') : null,
+        editMode ? h('span', { class:'vedit' },
+          mini('Rename', () => openSheet('renamevideo', { f:f.id, v:v.id })),
+          confirmBtn('v' + v.id, 'Delete', () => deleteVideo(f.id, v.id))
+        ) : null
+      )
+    );
+    const go = () => { if (!editMode) play(f.id, v.id); };
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); go(); } });
+    fc.append(row);
+  }
+  wrap = h('div', { class:'folder' + (depth ? ' sub' : '') + (f.open ? ' open' : '') }, head, edit, body);
+  return wrap;
+}
+function renderFolders(){
+  const root = $('folders'); root.replaceChildren();
+  root.classList.toggle('edit', editMode);
+  if (editMode){
+    root.append(h('div', { class:'tools' },
+      mini('Export backup', exportBackup),
+      mini('Import backup', () => $('importFile').click())
+    ));
+  }
+  if (!state.folders.length) root.append(h('div', { class:'hint' }, 'No folders yet.'));
+  for (const f of state.folders) root.append(renderNode(f, 0));
+  root.append(h('button', { class:'newfolder', onclick:() => openSheet('folder', { parent:null }) }, '+ New folder'));
+}
+function renderAll(withPlayer){
+  renderNow(); renderFolders();
+  if (withPlayer !== false && !playing) showEmpty();
+}
+
+/* ---------- Edit ---------- */
+function deleteVideo(fid, vid){
+  const r = findNode(fid); if (!r) return;
+  const wasCur = state.cur && state.cur.v === vid;
+  r.node.videos = r.node.videos.filter(v => v.id !== vid);
+  if (wasCur){ state.cur = null; playing = false; showEmpty(); }
+  save(); renderAll(false);
+}
+function deleteFolder(fid){
+  const r = findNode(fid); if (!r) return;
+  if (state.cur && contains(r.node, state.cur.f)){ state.cur = null; playing = false; showEmpty(); }
+  const i = r.list.indexOf(r.node); if (i >= 0) r.list.splice(i, 1);
+  save(); renderAll(false);
+}
+
+/* ---------- Backup ---------- */
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(state)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'focus-library-backup.json';
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function importBackup(file){
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const r = normalize(JSON.parse(String(rd.result)));
+      if (!r.folders.length) throw new Error('empty');
+      state = r; state.updated = Date.now(); localSave();
+      playing = false; showEmpty(); renderAll(false); toast('Backup restored');
+    } catch(e){ toast('That file is not a Focus Library backup.'); }
+  };
+  rd.readAsText(file);
+}
+
+/* ---------- Sheet ---------- */
+let sheetMode = 'video', sheetCtx = null, pickedIcon = '📁', titleTouched = false, fetchSeq = 0, saving = false;
+const SHOW = {
+  video:['fUrl','fTitle','fFolder'],
+  folder:['fName','fIcons','fParent','fChan'],
+  renamefolder:['fName','fIcons','fChan'],
+  renamevideo:['fTitle']
+};
+const ALL_FIELDS = ['fUrl','fTitle','fFolder','fName','fIcons','fParent','fChan'];
+const HEAD = { renamefolder:'Edit folder', renamevideo:'Rename video' };
+
+function setPane(mode){
+  sheetMode = mode;
+  const isTab = mode === 'video' || mode === 'folder';
+  $('tabs').hidden = !isTab;
+  $('sheetTitle').hidden = isTab; $('sheetTitle').textContent = HEAD[mode] || '';
+  $('tabVideo').classList.toggle('on', mode === 'video');
+  $('tabFolder').classList.toggle('on', mode === 'folder');
+  for (const f of ALL_FIELDS) $(f).hidden = SHOW[mode].indexOf(f) < 0;
+  $('title').placeholder = mode === 'renamevideo' ? 'Video title' : 'Filled in from the link';
+  $('err').textContent = '';
+}
+function fillSelect(sel, selectedId, withTop){
+  sel.replaceChildren();
+  if (withTop) sel.append(h('option', { value:'' }, 'Top level'));
+  for (const x of flatten(state.folders)){
+    const o = h('option', { value:x.node.id }, x.label);
+    if (x.node.id === selectedId) o.selected = true;
+    sel.append(o);
+  }
+}
+function buildIcons(){
+  const g = $('icons'); g.replaceChildren();
+  for (const e of EMOJI){
+    const b = h('button', { type:'button', class:e === pickedIcon ? 'on' : '', 'aria-label':'Icon ' + e }, e);
+    b.addEventListener('click', () => { pickedIcon = e; buildIcons(); });
+    g.append(b);
+  }
+}
+async function fillChannels(current){
+  const sel = $('chan');
+  sel.replaceChildren(h('option', { value:'' }, 'None'));
+  const feeds = await loadFeeds();
+  const keys = Object.keys(feeds.channels);
+  for (const k of keys) sel.append(h('option', { value:k }, feeds.channels[k].name || k));
+  if (current && keys.indexOf(current) < 0) sel.append(h('option', { value:current }, current));
+  sel.value = current || '';
+  $('chanNote').textContent = keys.length ? 'New uploads are added automatically.' : 'No channels are tracked yet.';
+}
+function openSheet(mode, ctx){
+  if (mode === 'video' && !state.folders.length) mode = 'folder';
+  sheetCtx = ctx || null;
+  setPane(mode);
+  $('url').value = ''; $('title').value = ''; $('fname').value = '';
+  titleTouched = false; fetchSeq++; saving = false;
+  pickedIcon = '📁';
+  if (mode === 'video'){
+    const pref = (state.cur && state.cur.f) || (state.folders[0] && state.folders[0].id);
+    fillSelect($('fsel'), pref, false);
+  } else if (mode === 'folder'){
+    fillSelect($('psel'), ctx && ctx.parent, true);
+    buildIcons(); fillChannels('');
+  } else if (mode === 'renamefolder'){
+    const r = findNode(ctx.id); if (!r) return;
+    $('fname').value = r.node.name; pickedIcon = r.node.icon || '📁';
+    buildIcons(); fillChannels(r.node.channel ? r.node.channel.ref : '');
+  } else if (mode === 'renamevideo'){
+    const r = findNode(ctx.f); const v = r && r.node.videos.find(x => x.id === ctx.v); if (!v) return;
+    $('title').value = v.title; titleTouched = true;
+  }
+  $('sheetBg').classList.add('open');
+  const first = { video:'url', folder:'fname', renamefolder:'fname', renamevideo:'title' }[mode];
+  setTimeout(() => $(first).focus(), 60);
+}
+function closeSheet(){ $('sheetBg').classList.remove('open'); fetchSeq++; }
+
+async function onUrlInput(){
+  const p = parseYT($('url').value);
+  const seq = ++fetchSeq;
+  if (!p || !p.vid || titleTouched || sheetMode !== 'video') return;
+  $('title').placeholder = 'Fetching title…';
+  const t = await fetchTitle(p.vid);
+  if (seq !== fetchSeq || titleTouched) return;
+  if (t) $('title').value = t;
+  $('title').placeholder = t ? '' : 'Type a title (lookup unavailable)';
+}
+
+async function submitSheet(){
+  if (saving) return;
+  const err = $('err'); err.textContent = '';
+  if (sheetMode === 'video'){
+    const p = parseYT($('url').value);
+    if (!p){ err.textContent = 'That is not a YouTube link.'; return; }
+    const r = findNode($('fsel').value); if (!r){ err.textContent = 'Pick a folder.'; return; }
+    saving = true;
+    let title = $('title').value.trim();
+    if (!title && p.vid) title = (await fetchTitle(p.vid)) || '';
+    if (!title) title = (!p.vid && p.list) ? 'Playlist' : 'Untitled';
+    saving = false;
+    r.node.videos.push({ id:rid(), title, vid:p.vid, list:p.list, t:p.t });
+    r.node.open = true;
+    save(); renderAll(false); closeSheet(); toast('Added to ' + r.node.name);
+  } else if (sheetMode === 'renamevideo'){
+    const title = $('title').value.trim();
+    if (!title){ err.textContent = 'Enter a title.'; return; }
+    const r = findNode(sheetCtx.f); const v = r && r.node.videos.find(x => x.id === sheetCtx.v);
+    if (v) v.title = title;
+    save(); renderAll(false); closeSheet();
+  } else {
+    const name = $('fname').value.trim();
+    if (!name){ err.textContent = 'Enter a name.'; return; }
+    const ref = $('chan').value;
+    let node, isNew = false;
+    if (sheetMode === 'renamefolder'){
+      const r = findNode(sheetCtx.id); if (!r) return;
+      node = r.node; node.name = name; node.icon = pickedIcon;
+    } else {
+      node = newNode(name, pickedIcon); isNew = true;
+      const par = $('psel').value ? findNode($('psel').value) : null;
+      if (par){ par.node.children.push(node); par.node.open = true; } else state.folders.push(node);
+    }
+    const changedChan = ref ? (!node.channel || node.channel.ref !== ref) : !!node.channel;
+    if (changedChan) node.channel = ref ? { ref, last:0, seen:[] } : null;
+    save(); renderAll(false); closeSheet();
+    if (node.channel && (isNew || changedChan)){
+      const c = await syncNode(node);
+      renderAll(false); toast(c + ' video' + (c === 1 ? '' : 's') + ' added');
+    }
+  }
+}
+
+let toastTimer = 0;
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ---------- Sleep timer ---------- */
+const SLEEP = [0, 15, 30, 60, 90];
+let sleepIdx = 0, sleepEnd = 0;
+function updSleep(){
+  const b = $('sleep');
+  if (!sleepEnd){ b.textContent = 'Sleep timer'; b.classList.remove('on'); return; }
+  b.textContent = 'Sleep · ' + Math.max(1, Math.ceil((sleepEnd - Date.now()) / 60000)) + 'm';
+  b.classList.add('on');
+}
+function tick(){
+  if (!sleepEnd) return;
+  if (Date.now() >= sleepEnd){
+    sleepEnd = 0; sleepIdx = 0; updSleep();
+    if (playing){ stop(); toast('Sleep timer ended. Playback stopped.'); }
+    return;
+  }
+  updSleep();
+}
+
+/* ---------- Wiring ---------- */
+$('prev').innerHTML = ICON.prev; $('next').innerHTML = ICON.next;
+$('prev').addEventListener('click', () => step(-1));
+$('next').addEventListener('click', () => step(1));
+$('loop').addEventListener('click', () => {
+  state.loop = !state.loop; save();
+  const c = findCur();
+  if (playing && c) play(c.f.id, c.v.id); else renderNow();
+});
+$('sleep').addEventListener('click', () => {
+  sleepIdx = (sleepIdx + 1) % SLEEP.length;
+  sleepEnd = SLEEP[sleepIdx] ? Date.now() + SLEEP[sleepIdx] * 60000 : 0;
+  updSleep();
+});
+$('editBtn').addEventListener('click', () => { editMode = !editMode; armed.clear(); renderNow(); renderFolders(); });
+$('addBtn').addEventListener('click', () => openSheet('video'));
+$('tabVideo').addEventListener('click', () => {
+  if (!state.folders.length){ $('err').textContent = 'Create a folder first.'; return; }
+  setPane('video'); fillSelect($('fsel'), state.folders[0].id, false);
+});
+$('tabFolder').addEventListener('click', () => { setPane('folder'); fillSelect($('psel'), null, true); buildIcons(); fillChannels(''); });
+$('cancel').addEventListener('click', closeSheet);
+$('save').addEventListener('click', submitSheet);
+$('sheetBg').addEventListener('click', e => { if (e.target === $('sheetBg')) closeSheet(); });
+$('url').addEventListener('input', onUrlInput);
+$('title').addEventListener('input', () => { titleTouched = true; });
+for (const id of ['url','title','fname']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); submitSheet(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+setInterval(tick, 1000);
+document.addEventListener('visibilitychange', tick);
+
+/* ---------- Boot ---------- */
+const stored = localLoad();
+if (stored) state = stored;
+$('importFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) importBackup(f); e.target.value = ''; });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) autoSync(true); });
+renderAll();
+autoSync();
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
