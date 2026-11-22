@@ -194,9 +194,16 @@ body.resizing iframe{pointer-events:none}
 
 /* Notes and transcript */
 .notes{--px:18px;display:none;position:relative;flex:1;min-height:0;min-width:0;flex-direction:column;background:#111318}
-.app.notes-open .notes{display:flex;animation:slidein .22s cubic-bezier(.2,.8,.2,1)}
-@keyframes slidein{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.app.notes-open .notes{animation:none}}
+.app.notes-open .notes{display:flex;animation:slidein .38s cubic-bezier(.32,.72,0,1)}
+@keyframes slidein{from{transform:translateX(100%)}to{transform:none}}
+#notesOpen{display:none;position:absolute;right:14px;top:14px;z-index:3;align-items:center;gap:8px;height:40px;padding:0 14px 0 12px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:650;font-size:14.5px;box-shadow:0 6px 20px rgba(143,176,255,.25);transition:transform .15s,box-shadow .15s}
+#notesOpen:hover{transform:translateY(-1px);box-shadow:0 8px 26px rgba(143,176,255,.35)}
+#notesOpen svg{width:19px;height:19px}
+#notesBtn{background:rgba(143,176,255,.16);color:var(--accent);font-weight:600}
+.app:not(.can-notes) #notesBtn{display:none}
+.app:not(.can-notes) #trTab{display:none}
+.app.notes-open #notesBtn{display:none}
+@media (prefers-reduced-motion:reduce){.app.notes-open .notes{animation:none}.lib,.notes,.stage{transition:none !important}}
 .np-head{flex:none;display:flex;align-items:center;gap:6px;padding:8px 10px}
 .ntabs{display:flex;gap:2px;padding:3px;background:var(--panel);border-radius:11px}
 .ntabs button{height:32px;padding:0 12px;border-radius:8px;color:var(--muted);font-weight:550;font-size:14px}
@@ -258,20 +265,32 @@ body.resizing iframe{pointer-events:none}
   .app.typing .player{width:min(100%,calc(22dvh * 16 / 9));margin:0 auto}
 }
 @media (min-width:900px){
-  .notes{--px:44px}
-  .app.notes-open .notes{order:5;flex:none;width:clamp(320px,var(--notesw,520px),calc(100vw - var(--libw,380px) - 400px));border-left:1px solid var(--line)}
-  .app.notes-open.side-closed .notes{width:clamp(320px,var(--notesw,520px),calc(100vw - 400px))}
-  .app.notes-open .lib{width:clamp(260px,var(--libw,380px),calc(100vw - 720px))}
+  /* Side panels push the video and slide open and closed by animating their width */
+  .lib{--lw:var(--libw,380px);width:var(--lw);overflow:hidden;transition:width .36s cubic-bezier(.32,.72,0,1),border-width .36s,visibility 0s}
+  .lib > :not(.selbar){width:var(--lw);flex-shrink:0}
+  .app.notes-open .lib{--lw:clamp(260px,var(--libw,380px),calc(100vw - 720px))}
+  .app.side-closed .lib{width:0;border-right-width:0;visibility:hidden;transition:width .36s cubic-bezier(.32,.72,0,1),border-width .36s,visibility 0s .36s}
+  .app.side-closed #resizer{display:none}
+  .app.side-closed #sideOpen{display:grid}
+  .notes{--px:44px;--nw:clamp(320px,var(--notesw,520px),calc(100vw - var(--libw,380px) - 400px));
+    display:flex;order:5;flex:none;width:0;overflow:hidden;visibility:hidden;border-left:1px solid transparent;
+    transition:width .36s cubic-bezier(.32,.72,0,1),border-color .36s,visibility 0s .36s}
+  .notes > :not(.selbar){width:var(--nw);flex-shrink:0}
+  .app.side-closed .notes{--nw:clamp(320px,var(--notesw,520px),calc(100vw - 400px))}
+  .app.notes-open .notes{width:var(--nw);visibility:visible;border-left-color:var(--line);transition:width .36s cubic-bezier(.32,.72,0,1),border-color .36s,visibility 0s}
+  .app.notes-open .notes{animation:none}
+  body.resizing .app .lib,body.resizing .app.notes-open .notes{transition:none}
+  #notesResizer{order:4}
+  .app:not(.notes-open) #notesResizer{display:none}
+  .stage{position:relative;transition:padding .36s cubic-bezier(.32,.72,0,1)}
+  .app.notes-open .stage{padding:16px 20px}
   .app.notes-open .controls .spacer{display:none}
   .app.notes-open .controls{gap:6px}
   .app.notes-open .chip{height:38px;padding:0 12px;font-size:13.5px}
   .app.notes-open .ib{width:40px;height:40px}
-  #notesResizer{order:4}
-  .app:not(.notes-open) #notesResizer{display:none}
-  .app.side-closed .lib,.app.side-closed #resizer{display:none}
-  .app.side-closed #sideOpen{display:grid}
-  .stage{position:relative}
-  .app.notes-open .stage{padding:16px 20px}
+  #notesBtn{display:none}
+  .app.can-notes:not(.notes-open) #notesOpen{display:flex}
+}
 }
 @media (orientation:landscape) and (max-height:520px) and (max-width:899px){
   .notes{border-left:1px solid var(--line)}
@@ -281,6 +300,7 @@ body.resizing iframe{pointer-events:none}
 <body>
 <div class="app" id="app">
   <section class="stage" id="stage">
+    <button id="notesOpen" aria-label="Open notes" title="Open notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M14.5 4.5v15"/><path d="M6.5 9h5M6.5 12.5h5"/></svg><span>Notes</span></button>
     <button class="sideb" id="sideOpen" aria-label="Show sidebar" title="Show sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/></svg></button>
     <div class="deck" id="deck0">
       <div class="player" id="player"></div>
@@ -1426,6 +1446,24 @@ function hideBar(){
 }
 
 /* ----- The note for the video in the active player ----- */
+/* Notes are for podcasts: videos in a folder (or under a folder) named "Podcast…" or marked 🎧 / 🎙️. A video that already has a note always qualifies. */
+function pathTo(fid, list, trail){
+  list = list || state.folders; trail = trail || [];
+  for (const n of list){
+    const t = trail.concat(n);
+    if (n.id === fid) return t;
+    const r = pathTo(fid, n.children, t);
+    if (r) return r;
+  }
+  return null;
+}
+function isPodcastFolder(fid){
+  return (pathTo(fid) || []).some(n => /podcast/i.test(n.name) || n.icon === '🎧' || n.icon === '🎙️');
+}
+function notesAllowed(){
+  const c = findCur(activeSlot());
+  return !!(c && c.v.vid && (isPodcastFolder(c.f.id) || noted.has(c.v.vid)));
+}
 function notesCtx(){
   const slot = activeSlot(), c = findCur(slot);
   return c && c.v.vid ? { vid:c.v.vid, title:c.v.title, slot } : null;
@@ -1450,15 +1488,17 @@ function writeNote(s){
 }
 function flushNote(){ return writeNote(snapNote()).catch(() => toast('This note could not be saved on this device.')); }
 function paintPanes(){
-  const has = !!noteVid, app = $('app');
-  app.classList.toggle('notes-open', notesOpen);
+  const has = !!noteVid, app = $('app'), ok = notesAllowed();
+  app.classList.toggle('can-notes', ok);
+  app.classList.toggle('notes-open', notesOpen && ok);
+  const left = ok ? leftTab : 'lib';
   app.classList.toggle('side-closed', sideClosed);
   $('notesBtn').classList.toggle('on', notesOpen);
-  $('libPane').hidden = leftTab !== 'lib';
-  $('trPane').hidden = leftTab !== 'tr';
-  $('editBtn').hidden = $('addBtn').hidden = leftTab !== 'lib';
-  $('libTab').classList.toggle('on', leftTab === 'lib');
-  $('trTab').classList.toggle('on', leftTab === 'tr');
+  $('libPane').hidden = left !== 'lib';
+  $('trPane').hidden = left !== 'tr';
+  $('editBtn').hidden = $('addBtn').hidden = left !== 'lib';
+  $('libTab').classList.toggle('on', left === 'lib');
+  $('trTab').classList.toggle('on', left === 'tr');
   $('trNone').hidden = has; $('trBar').hidden = $('trBody').hidden = !has;
   $('npNone').hidden = has; $('page').hidden = !has; $('copyNotion').hidden = !has;
   if ($('pgTitle').textContent !== noteTitle) $('pgTitle').textContent = noteTitle;
@@ -1927,7 +1967,7 @@ function readSel(){
   return { s:curTr.segs[first].s, e:curTr.segs[last].e, lines, text:lines.map(l => l.text).join(' ') };
 }
 function checkSel(){
-  if (leftTab !== 'tr' || !$('lib').offsetParent) return;
+  if (leftTab !== 'tr' || $('trPane').hidden || !$('lib').offsetParent) return;
   const q = readSel(); if (!q) return;
   bar(fmtT(q.s) + '–' + fmtT(q.e) + '  ' + q.text, [['Save quote', () => saveQuote(false), 'go'], ['Link only', () => saveQuote(true)]], $('lib'));
   pend = q;
@@ -1969,7 +2009,7 @@ function nowPara(){
   return hit;
 }
 function markNow(){
-  if (leftTab !== 'tr' || !curTr) return;
+  if (leftTab !== 'tr' || $('trPane').hidden || !curTr) return;
   const hit = nowPara(), old = $('trBody').querySelector('.tp.on');
   if (old === hit) return;
   if (old) old.classList.remove('on');
@@ -2017,6 +2057,7 @@ buildToolbar();
 try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(e){}
 $('notesBtn').addEventListener('click', () => setNotes(!notesOpen));
 $('notesClose').addEventListener('click', () => setNotes(false));
+$('notesOpen').addEventListener('click', () => setNotes(true));
 $('libTab').addEventListener('click', () => setLeft('lib'));
 $('trTab').addEventListener('click', () => setLeft('tr'));
 $('sideClose').addEventListener('click', () => setSide(true));
