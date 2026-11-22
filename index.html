@@ -233,7 +233,7 @@ body.resizing iframe{pointer-events:none}
 .co[data-k="note"]{--co-bg:rgba(155,155,155,.10);--co-line:rgba(155,155,155,.22)}
 .co[data-k="key"]{--co-bg:rgba(223,84,82,.12);--co-line:rgba(223,84,82,.3)}
 .co-h{display:flex;align-items:center;gap:6px;min-height:30px}
-.co-t{flex:none;width:22px;height:22px;display:grid;place-items:center;border-radius:6px;color:var(--muted);font-size:12px;cursor:pointer;transition:transform .2s;-webkit-user-select:none;user-select:none}
+.co-t{flex:none;width:28px;height:28px;margin:-3px -3px -3px 0;display:grid;place-items:center;border-radius:6px;color:var(--muted);font-size:12px;cursor:pointer;transition:transform .2s;-webkit-user-select:none;user-select:none}
 .co-t:hover,.co-i:hover{background:rgba(255,255,255,.08)}
 .co[data-open="0"] .co-t{transform:rotate(-90deg)}
 .co-i{flex:none;width:26px;height:26px;display:grid;place-items:center;border-radius:6px;font-size:17px;cursor:pointer;-webkit-user-select:none;user-select:none}
@@ -241,6 +241,8 @@ body.resizing iframe{pointer-events:none}
 .co-b{padding:2px 0 2px 56px}
 .co-b > :first-child{margin-top:.2em}
 .co[data-open="0"] .co-b{display:none}
+.co[data-open="0"] .co-h{cursor:pointer}
+.co[data-open="0"] .co-l{cursor:pointer}
 .spk-w{display:flex;align-items:center;gap:6px;margin-bottom:1px}
 .spk-w .spk{margin:0}
 .swap{width:22px;height:20px;border-radius:6px;color:var(--muted);font-size:12px;opacity:0;transition:opacity .15s}
@@ -2339,6 +2341,10 @@ $('askBg').addEventListener('click', e => { if (e.target === $('askBg') && askDo
   ed.addEventListener('click', e => {
     const tog = e.target.closest && e.target.closest('.co-t'), ico = e.target.closest && e.target.closest('.co-i');
     if (tog && ed.contains(tog)){ const co = tog.closest('.co'); co.setAttribute('data-open', co.getAttribute('data-open') === '0' ? '1' : '0'); onEdit(); return; }
+    const hd = e.target.closest && e.target.closest('.co-h');
+    if (hd && ed.contains(hd) && !ico && hd.parentNode.getAttribute('data-open') === '0'){   // closed: any click on the heading opens it
+      hd.parentNode.setAttribute('data-open', '1'); onEdit(); return;
+    }
     if (ico && ed.contains(ico)){
       const co = ico.closest('.co'), k = CO_ORDER[(CO_ORDER.indexOf(co.getAttribute('data-k')) + 1) % CO_ORDER.length];
       const lab = co.querySelector('.co-l'), wasDefault = lab && Object.values(CO_KINDS).some(x => x[1] === lab.textContent.trim());
