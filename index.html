@@ -194,9 +194,16 @@ body.resizing iframe{pointer-events:none}
 
 /* Notes and transcript */
 .notes{--px:18px;display:none;position:relative;flex:1;min-height:0;min-width:0;flex-direction:column;background:#111318}
-.app.notes-open .notes{display:flex;animation:slidein .22s cubic-bezier(.2,.8,.2,1)}
-@keyframes slidein{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.app.notes-open .notes{animation:none}}
+.app.notes-open .notes{display:flex;animation:slidein .38s cubic-bezier(.32,.72,0,1)}
+@keyframes slidein{from{transform:translateX(100%)}to{transform:none}}
+#notesOpen{display:none;position:absolute;right:14px;top:14px;z-index:3;align-items:center;gap:8px;height:40px;padding:0 14px 0 12px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:650;font-size:14.5px;box-shadow:0 6px 20px rgba(143,176,255,.25);transition:transform .15s,box-shadow .15s}
+#notesOpen:hover{transform:translateY(-1px);box-shadow:0 8px 26px rgba(143,176,255,.35)}
+#notesOpen svg{width:19px;height:19px}
+#notesBtn{background:rgba(143,176,255,.16);color:var(--accent);font-weight:600}
+.app:not(.can-notes) #notesBtn{display:none}
+.app:not(.can-notes) #trTab{display:none}
+.app.notes-open #notesBtn{display:none}
+@media (prefers-reduced-motion:reduce){.app.notes-open .notes{animation:none}.lib,.notes,.stage{transition:none !important}}
 .np-head{flex:none;display:flex;align-items:center;gap:6px;padding:8px 10px}
 .ntabs{display:flex;gap:2px;padding:3px;background:var(--panel);border-radius:11px}
 .ntabs button{height:32px;padding:0 12px;border-radius:8px;color:var(--muted);font-weight:550;font-size:14px}
@@ -242,6 +249,12 @@ body.resizing iframe{pointer-events:none}
 .tx{flex:1;min-width:0}
 .spk{display:block;margin-bottom:1px;font-weight:650;font-size:13.5px;color:var(--accent);cursor:pointer;-webkit-user-select:none;user-select:none}
 .tr-body ::selection{background:rgba(143,176,255,.4)}
+.sg{border-radius:4px;transition:background-color .2s}
+.sg.now:not(.wd){background:rgba(143,176,255,.16)}
+.w{border-radius:4px;padding:0 1px;margin:0 -1px;cursor:pointer;transition:background-color .15s,color .15s}
+.sg.wd.now .w{color:#fff}
+.w.now,.w.now:hover{background:var(--accent);color:var(--accent-ink)}
+.w:hover{background:rgba(255,255,255,.06)}
 .selbar{position:absolute;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:3;display:flex;align-items:center;gap:6px;padding:8px 8px 8px 14px;border-radius:16px;background:rgba(24,29,42,.96);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .selbar .sb-t{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .selbar .mini{background:rgba(255,255,255,.07)}
@@ -258,20 +271,32 @@ body.resizing iframe{pointer-events:none}
   .app.typing .player{width:min(100%,calc(22dvh * 16 / 9));margin:0 auto}
 }
 @media (min-width:900px){
-  .notes{--px:44px}
-  .app.notes-open .notes{order:5;flex:none;width:clamp(320px,var(--notesw,520px),calc(100vw - var(--libw,380px) - 400px));border-left:1px solid var(--line)}
-  .app.notes-open.side-closed .notes{width:clamp(320px,var(--notesw,520px),calc(100vw - 400px))}
-  .app.notes-open .lib{width:clamp(260px,var(--libw,380px),calc(100vw - 720px))}
+  /* Side panels push the video and slide open and closed by animating their width */
+  .lib{--lw:var(--libw,380px);width:var(--lw);overflow:hidden;transition:width .36s cubic-bezier(.32,.72,0,1),border-width .36s,visibility 0s}
+  .lib > :not(.selbar){width:var(--lw);flex-shrink:0}
+  .app.notes-open .lib{--lw:clamp(260px,var(--libw,380px),calc(100vw - 720px))}
+  .app.side-closed .lib{width:0;border-right-width:0;visibility:hidden;transition:width .36s cubic-bezier(.32,.72,0,1),border-width .36s,visibility 0s .36s}
+  .app.side-closed #resizer{display:none}
+  .app.side-closed #sideOpen{display:grid}
+  .notes{--px:44px;--nw:clamp(320px,var(--notesw,520px),calc(100vw - var(--libw,380px) - 400px));
+    display:flex;order:5;flex:none;width:0;overflow:hidden;visibility:hidden;border-left:1px solid transparent;
+    transition:width .36s cubic-bezier(.32,.72,0,1),border-color .36s,visibility 0s .36s}
+  .notes > :not(.selbar){width:var(--nw);flex-shrink:0}
+  .app.side-closed .notes{--nw:clamp(320px,var(--notesw,520px),calc(100vw - 400px))}
+  .app.notes-open .notes{width:var(--nw);visibility:visible;border-left-color:var(--line);transition:width .36s cubic-bezier(.32,.72,0,1),border-color .36s,visibility 0s}
+  .app.notes-open .notes{animation:none}
+  body.resizing .app .lib,body.resizing .app.notes-open .notes{transition:none}
+  #notesResizer{order:4}
+  .app:not(.notes-open) #notesResizer{display:none}
+  .stage{position:relative;transition:padding .36s cubic-bezier(.32,.72,0,1)}
+  .app.notes-open .stage{padding:16px 20px}
   .app.notes-open .controls .spacer{display:none}
   .app.notes-open .controls{gap:6px}
   .app.notes-open .chip{height:38px;padding:0 12px;font-size:13.5px}
   .app.notes-open .ib{width:40px;height:40px}
-  #notesResizer{order:4}
-  .app:not(.notes-open) #notesResizer{display:none}
-  .app.side-closed .lib,.app.side-closed #resizer{display:none}
-  .app.side-closed #sideOpen{display:grid}
-  .stage{position:relative}
-  .app.notes-open .stage{padding:16px 20px}
+  #notesBtn{display:none}
+  .app.can-notes:not(.notes-open) #notesOpen{display:flex}
+}
 }
 @media (orientation:landscape) and (max-height:520px) and (max-width:899px){
   .notes{border-left:1px solid var(--line)}
@@ -281,6 +306,7 @@ body.resizing iframe{pointer-events:none}
 <body>
 <div class="app" id="app">
   <section class="stage" id="stage">
+    <button id="notesOpen" aria-label="Open notes" title="Open notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M14.5 4.5v15"/><path d="M6.5 9h5M6.5 12.5h5"/></svg><span>Notes</span></button>
     <button class="sideb" id="sideOpen" aria-label="Show sidebar" title="Show sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/></svg></button>
     <div class="deck" id="deck0">
       <div class="player" id="player"></div>
@@ -1206,7 +1232,7 @@ const ENGINES = {
   captions:{ actor:'johnvc~YoutubeTranscripts', cap:0.05,
     input:u => ({ youtube_url:u, languages:['en'], include_metadata:false }) },
   deapi:{ actor:'deapi~youtube-transcript-ai', cap:3,
-    input:u => ({ videoUrls:[u], timestampLevel:'segment', diarize:true, includeSubtitles:false, includeMetadata:false }) },
+    input:u => ({ videoUrls:[u], timestampLevel:'word', diarize:true, includeSubtitles:false, includeMetadata:false }) },
   lergassy:{ actor:'lergassy~whisper-transcriber', cap:6,
     input:u => ({ urls:[u], quality:'accurate', diarize:true, includeSegments:true, subtitleFormat:'none', timeoutPerFileSecs:7200 }) }
 };
@@ -1329,7 +1355,9 @@ window.addEventListener('message', e => {
   const slot = [0, 1].find(s => { const f = frameOf(s); return f && f.contentWindow === e.source; });
   if (slot === undefined) return;
   yt[slot].ready = true;
-  if (d.info && typeof d.info.currentTime === 'number') yt[slot].t = d.info.currentTime;
+  if (d.info && typeof d.info.currentTime === 'number'){ yt[slot].t = d.info.currentTime; yt[slot].at = performance.now(); }
+  if (d.info && typeof d.info.playerState === 'number') yt[slot].st = d.info.playerState;
+  if (d.info && typeof d.info.playbackRate === 'number') yt[slot].rate = d.info.playbackRate;
 });
 function findByVid(vid){
   for (const x of flatten(state.folders)){
@@ -1340,7 +1368,7 @@ function findByVid(vid){
 }
 /* Jump to a second of a video: seek the running player, or start the video there. */
 function seekTo(vid, t){
-  t = Math.max(0, Math.floor(t));
+  t = Math.max(0, Math.round(t * 100) / 100);
   const slots = state.dual ? [activeSlot(), activeSlot() ? 0 : 1] : [0];
   for (const sl of slots){
     const c = findCur(sl);
@@ -1348,7 +1376,7 @@ function seekTo(vid, t){
     if (isPlaying(sl) && yt[sl].ready){
       ytPost(sl, { event:'command', func:'seekTo', args:[t, true] });
       ytPost(sl, { event:'command', func:'playVideo', args:[] });
-      yt[sl].t = t;
+      yt[sl].t = t; yt[sl].at = performance.now();
     } else play(c.f.id, c.v.id, sl, t);
     return true;
   }
@@ -1426,6 +1454,24 @@ function hideBar(){
 }
 
 /* ----- The note for the video in the active player ----- */
+/* Notes are for podcasts: videos in a folder (or under a folder) named "Podcast…" or marked 🎧 / 🎙️. A video that already has a note always qualifies. */
+function pathTo(fid, list, trail){
+  list = list || state.folders; trail = trail || [];
+  for (const n of list){
+    const t = trail.concat(n);
+    if (n.id === fid) return t;
+    const r = pathTo(fid, n.children, t);
+    if (r) return r;
+  }
+  return null;
+}
+function isPodcastFolder(fid){
+  return (pathTo(fid) || []).some(n => /podcast/i.test(n.name) || n.icon === '🎧' || n.icon === '🎙️');
+}
+function notesAllowed(){
+  const c = findCur(activeSlot());
+  return !!(c && c.v.vid && (isPodcastFolder(c.f.id) || noted.has(c.v.vid)));
+}
 function notesCtx(){
   const slot = activeSlot(), c = findCur(slot);
   return c && c.v.vid ? { vid:c.v.vid, title:c.v.title, slot } : null;
@@ -1450,15 +1496,17 @@ function writeNote(s){
 }
 function flushNote(){ return writeNote(snapNote()).catch(() => toast('This note could not be saved on this device.')); }
 function paintPanes(){
-  const has = !!noteVid, app = $('app');
-  app.classList.toggle('notes-open', notesOpen);
+  const has = !!noteVid, app = $('app'), ok = notesAllowed();
+  app.classList.toggle('can-notes', ok);
+  app.classList.toggle('notes-open', notesOpen && ok);
+  const left = ok ? leftTab : 'lib';
   app.classList.toggle('side-closed', sideClosed);
   $('notesBtn').classList.toggle('on', notesOpen);
-  $('libPane').hidden = leftTab !== 'lib';
-  $('trPane').hidden = leftTab !== 'tr';
-  $('editBtn').hidden = $('addBtn').hidden = leftTab !== 'lib';
-  $('libTab').classList.toggle('on', leftTab === 'lib');
-  $('trTab').classList.toggle('on', leftTab === 'tr');
+  $('libPane').hidden = left !== 'lib';
+  $('trPane').hidden = left !== 'tr';
+  $('editBtn').hidden = $('addBtn').hidden = left !== 'lib';
+  $('libTab').classList.toggle('on', left === 'lib');
+  $('trTab').classList.toggle('on', left === 'tr');
   $('trNone').hidden = has; $('trBar').hidden = $('trBody').hidden = !has;
   $('npNone').hidden = has; $('page').hidden = !has; $('copyNotion').hidden = !has;
   if ($('pgTitle').textContent !== noteTitle) $('pgTitle').textContent = noteTitle;
@@ -1758,11 +1806,28 @@ function spName(tr, raw){
   return m ? 'Speaker ' + (+m[1] + 1) : raw;
 }
 /* Different actors name their fields differently; reduce them all to {s, e, t, sp}. */
+/* Word-timed output can come as one long block per speaker turn: cut it into chunks of a sentence or a few, keeping every word's time. */
+function chunkWords(words, sp0){
+  const out = []; let cur = null;
+  const r2 = n => Math.round(n * 100) / 100;
+  for (const w of words){
+    const t = String((w && (w.word != null ? w.word : w.text)) || '').trim();
+    const s = +(w && w.start);
+    if (!t || !isFinite(s)) continue;
+    const e = Math.max(isFinite(+w.end) ? +w.end : s, s);
+    const sp = w.speaker != null ? String(w.speaker) : sp0;
+    const brk = !cur || sp !== cur.sp || s - cur.e > 1.5 || s - cur.s > 20 || (s - cur.s > 7 && /[.!?…]["”')]?$/.test(cur.last));
+    if (brk){ cur = { s, e, sp, w:[], last:'' }; out.push(cur); }
+    cur.w.push([r2(s), r2(e), t]); cur.e = Math.max(cur.e, e); cur.last = t;
+  }
+  return out.map(c => ({ s:c.s, e:c.e, t:c.w.map(x => x[2]).join(' '), sp:c.sp, w:c.w }));
+}
 function normTranscript(items, vid){
   const list = Array.isArray(items) ? items : [];
   const it = list.find(x => x && (Array.isArray(x.segments) || Array.isArray(x.timestamped)));
   const segs = [];
   for (const x of (it ? (it.segments || it.timestamped) : [])){
+    if (x && Array.isArray(x.words) && x.words.length){ segs.push(...chunkWords(x.words, x.speaker != null ? String(x.speaker) : '')); continue; }
     const t = String((x && x.text) || '').replace(/\s+/g, ' ').trim();
     if (!t) continue;
     const s = Math.max(0, +x.start || 0);
@@ -1773,6 +1838,7 @@ function normTranscript(items, vid){
     const bad = list[0] || {}, why = bad.error || bad.errorMessage || bad.message;
     throw new Error(why ? String(typeof why === 'string' ? why : JSON.stringify(why)).slice(0, 200) : 'No transcript came back for this video.');
   }
+  segs.sort((a, b) => a.s - b.s);
   return { vid, kind:segs.some(x => x.sp) ? 'speakers' : 'captions', segs, names:{}, at:Date.now() };
 }
 function groupSegs(tr){
@@ -1797,11 +1863,18 @@ async function renderTranscript(keepScroll){
   for (const p of groupSegs(curTr)){
     const tx = h('div', { class:'tx' });
     if (p.sp) tx.append(h('span', { class:'spk', 'data-sp':p.sp, role:'button', title:'Rename this speaker' }, spName(curTr, p.sp)));
-    for (const i of p.idx) tx.append(h('span', { class:'sg', 'data-i':String(i) }, curTr.segs[i].t + ' '));
+    for (const i of p.idx){
+      const g = curTr.segs[i], sg = h('span', { class:'sg' + (g.w ? ' wd' : ''), 'data-i':String(i) });
+      if (g.w) for (const w of g.w) sg.append(h('span', { class:'w' }, w[2]), ' ');
+      else sg.append(g.t + ' ');
+      tx.append(sg);
+    }
     frag.append(h('div', { class:'tp', 'data-s':String(p.s) }, h('button', { class:'tt', 'data-t':String(Math.floor(p.s)) }, fmtT(p.s)), tx));
   }
   body.append(frag);
+  segEls = Array.from(body.querySelectorAll('.sg')); nowSeg = -1; nowWord = null;
   if (keepScroll) body.scrollTop = top;
+  tick(true);
 }
 function paidBtn(label, fn){
   const b = h('button', { class:'mini' }, label);
@@ -1829,7 +1902,8 @@ function trBar(){
     else st.textContent = cfg.token ? 'No transcript yet.' : 'Add your Apify key to pull transcripts.';
     if (!curTr) btns.push(h('button', { class:'mini go', onclick:() => startTranscript('captions') }, 'Get captions'));
     if (!curTr || curTr.kind !== 'speakers') btns.push(paidBtn('Split by speaker', () => startTranscript('speakers')));
-    if (curTr) btns.push(h('button', { class:'mini', onclick:scrollNow }, 'Now'));
+    if (curTr) btns.push(h('button', { class:'mini' + (follow ? ' go' : ''), id:'followBtn', title:'Keep the spoken line in view',
+      onclick:() => { follow = true; paintFollow(); scrollNow(); } }, follow ? 'Following' : 'Follow'));
   }
   b.append(st, ...btns, h('button', { class:'mini', 'aria-label':'Transcript settings', title:'Transcript settings', onclick:openSettings }, '⚙'));
 }
@@ -1837,7 +1911,7 @@ async function openSettings(){
   const r = await ask({ title:'Transcripts', ok:'Save', fields:[
     { id:'token', label:'Apify API token', type:'password', value:cfg.token, placeholder:'apify_api_…' },
     { id:'engine', label:'Engine for "Split by speaker"', value:cfg.engine, options:[
-      ['deapi', 'Standard (about $0.17 per hour of video)'],
+      ['deapi', 'Standard, word timing (about $0.10 per hour of video)'],
       ['lergassy', 'Whisper large v3 (about $1 per hour of video)']] }
   ], note:'The token stays in this browser. It is not written to the repo or to backups. Captions cost under one cent per video.' });
   if (!r) return false;
@@ -1905,16 +1979,29 @@ function resumeRuns(){
   }
 }
 /* What is selected in the transcript: the words, and the start and end time of the lines they sit in. */
+function selPart(el, rg){
+  const r = document.createRange(); r.selectNodeContents(el);
+  if (el.contains(rg.startContainer)) r.setStart(rg.startContainer, rg.startOffset);
+  if (el.contains(rg.endContainer)) r.setEnd(rg.endContainer, rg.endOffset);
+  return r.toString();
+}
+function edgeWord(sg, rg, first){
+  const ws = sg.children; let hit = -1;
+  for (let j = 0; j < ws.length; j++){
+    if (!rg.intersectsNode(ws[j]) || !selPart(ws[j], rg).trim()) continue;
+    hit = j; if (first) break;
+  }
+  return hit;
+}
 function readSel(){
   const sel = window.getSelection(), body = $('trBody');
   if (!curTr || !sel || sel.isCollapsed || !sel.rangeCount) return null;
   const rg = sel.getRangeAt(0);
   if (!body.contains(rg.commonAncestorContainer)) return null;
   const lines = []; let first = -1, last = -1;
-  for (const sp of body.querySelectorAll('.sg')){
+  for (const sp of segEls){
     if (!rg.intersectsNode(sp)){ if (first >= 0) break; continue; }
-    const tn = sp.firstChild; if (!tn) continue;
-    const t = tn.data.slice(rg.startContainer === tn ? rg.startOffset : 0, rg.endContainer === tn ? rg.endOffset : tn.length);
+    const t = selPart(sp, rg);
     if (!t.trim()) continue;
     const i = +sp.dataset.i, who = curTr.segs[i].sp;
     if (first < 0) first = i;
@@ -1924,10 +2011,14 @@ function readSel(){
   }
   if (first < 0) return null;
   for (const l of lines) l.text = l.text.replace(/\s+/g, ' ').trim();
-  return { s:curTr.segs[first].s, e:curTr.segs[last].e, lines, text:lines.map(l => l.text).join(' ') };
+  const a = curTr.segs[first], b = curTr.segs[last];
+  let s0 = a.s, e0 = b.e;
+  if (a.w){ const k = edgeWord(segEls[first], rg, true); if (k >= 0) s0 = a.w[k][0]; }
+  if (b.w){ const k = edgeWord(segEls[last], rg, false); if (k >= 0) e0 = b.w[k][1]; }
+  return { s:s0, e:e0, lines, text:lines.map(l => l.text).join(' ') };
 }
 function checkSel(){
-  if (leftTab !== 'tr' || !$('lib').offsetParent) return;
+  if (leftTab !== 'tr' || $('trPane').hidden || !$('lib').offsetParent) return;
   const q = readSel(); if (!q) return;
   bar(fmtT(q.s) + '–' + fmtT(q.e) + '  ' + q.text, [['Save quote', () => saveQuote(false), 'go'], ['Link only', () => saveQuote(true)]], $('lib'));
   pend = q;
@@ -1962,23 +2053,53 @@ async function renameSpeaker(raw){
   try { await DB.put('transcripts', tr); } catch(e){}
   renderTranscript(true);
 }
-function nowPara(){
-  const c = notesCtx(); if (!c || !yt[c.slot].ready) return null;
-  let hit = null;
-  for (const p of $('trBody').children){ if (+p.dataset.s <= yt[c.slot].t + 1) hit = p; else break; }
-  return hit;
+/* ----- Live highlight: the line and word being spoken, following the player ----- */
+let segEls = [], nowSeg = -1, nowWord = null, follow = true;
+function playerNow(){
+  const c = notesCtx(); if (!c || !isPlaying(c.slot)) return null;
+  const y = yt[c.slot]; if (!y.ready || y.at == null) return null;
+  const run = y.st === 1 || y.st == null;
+  return y.t + (run ? Math.min(1.5, (performance.now() - y.at) / 1000) * (y.rate || 1) : 0);
 }
-function markNow(){
-  if (leftTab !== 'tr' || !curTr) return;
-  const hit = nowPara(), old = $('trBody').querySelector('.tp.on');
-  if (old === hit) return;
-  if (old) old.classList.remove('on');
-  if (hit) hit.classList.add('on');
+function findSeg(t){
+  const g = curTr.segs; let lo = 0, hi = g.length - 1, r = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (g[m].s <= t){ r = m; lo = m + 1; } else hi = m - 1; }
+  return r;
+}
+function paintFollow(){
+  const b = $('followBtn'); if (!b) return;
+  b.textContent = follow ? 'Following' : 'Follow'; b.classList.toggle('go', follow);
+}
+function keepInView(el, force){
+  const body = $('trBody'), br = body.getBoundingClientRect(), er = el.getBoundingClientRect(), hgt = br.height;
+  if (!force && er.top >= br.top + hgt * 0.12 && er.bottom <= br.top + hgt * 0.62) return;
+  body.scrollTo({ top:body.scrollTop + (er.top - br.top) - hgt * 0.28, behavior:'smooth' });
+}
+function tick(force){
+  if (leftTab !== 'tr' || $('trPane').hidden || !curTr || !segEls.length) return;
+  const t = playerNow(); if (t == null) return;
+  const i = findSeg(t + 0.1);
+  const busy = !$('selBar').hidden || !window.getSelection().isCollapsed;
+  if (i !== nowSeg){
+    const old = segEls[nowSeg];
+    if (old){ old.classList.remove('now'); const p = old.closest('.tp'); if (p) p.classList.remove('on'); }
+    nowSeg = i;
+    const el = segEls[i];
+    if (el){ el.classList.add('now'); const p = el.closest('.tp'); if (p) p.classList.add('on'); if (follow && !busy) keepInView(el, force); }
+  }
+  const g = curTr.segs[i];
+  let wEl = null;
+  if (g && g.w && t <= g.e + 0.6){
+    let lo = 0, hi = g.w.length - 1, k = -1;
+    while (lo <= hi){ const m = (lo + hi) >> 1; if (g.w[m][0] <= t + 0.05){ k = m; lo = m + 1; } else hi = m - 1; }
+    if (k >= 0) wEl = segEls[i].children[k] || null;
+  }
+  if (wEl !== nowWord){ if (nowWord) nowWord.classList.remove('now'); if (wEl) wEl.classList.add('now'); nowWord = wEl; }
 }
 function scrollNow(){
-  markNow();
-  const hit = nowPara();
-  if (hit) hit.scrollIntoView({ block:'center', behavior:'smooth' }); else toast('Start the video first.');
+  tick();
+  const el = segEls[nowSeg];
+  if (el && playerNow() != null) keepInView(el, true); else toast('Start the video first.');
 }
 async function importNotes(raw){
   const ok = v => typeof v === 'string' && /^[\w-]{11}$/.test(v);
@@ -1990,7 +2111,11 @@ async function importNotes(raw){
       if (!t || !ok(t.vid) || !Array.isArray(t.segs)) continue;
       const names = {};
       for (const k in (t.names || {})) names[String(k)] = String(t.names[k]).slice(0, 60);
-      const segs = t.segs.map(x => ({ s:+x.s || 0, e:+x.e || 0, t:String(x.t || ''), sp:String(x.sp || '') })).filter(x => x.t);
+      const segs = t.segs.map(x => {
+        const o = { s:+x.s || 0, e:+x.e || 0, t:String(x.t || ''), sp:String(x.sp || '') };
+        if (Array.isArray(x.w)) o.w = x.w.filter(a => Array.isArray(a) && a.length === 3).map(a => [+a[0] || 0, +a[1] || 0, String(a[2])]);
+        return o;
+      }).filter(x => x.t);
       if (segs.length) await DB.put('transcripts', { vid:t.vid, kind:segs.some(x => x.sp) ? 'speakers' : 'captions', segs, names, at:+t.at || Date.now() });
     }
     noted.clear();
@@ -2017,6 +2142,7 @@ buildToolbar();
 try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(e){}
 $('notesBtn').addEventListener('click', () => setNotes(!notesOpen));
 $('notesClose').addEventListener('click', () => setNotes(false));
+$('notesOpen').addEventListener('click', () => setNotes(true));
 $('libTab').addEventListener('click', () => setLeft('lib'));
 $('trTab').addEventListener('click', () => setLeft('tr'));
 $('sideClose').addEventListener('click', () => setSide(true));
@@ -2092,12 +2218,18 @@ $('trBody').addEventListener('click', e => {
   const tt = e.target.closest('.tt'), sp = e.target.closest('.spk');
   if (tt){
     const t = +tt.dataset.t;
-    seekTo(noteVid, t);
+    seekTo(noteVid, +tt.closest('.tp').dataset.s);   // exact start of the line, so the highlight lands on it
     bar(fmtT(t), [['Add link to notes', () => saveQuote(true), 'go']], $('lib'));
     pend = { s:t, e:0, text:'', lines:[] };
     return;
   }
   if (sp){ renameSpeaker(sp.dataset.sp); return; }
+  const w = e.target.closest('.w'), sel0 = window.getSelection();
+  if (w && sel0 && sel0.isCollapsed){
+    const sg = w.parentNode, g = curTr && curTr.segs[+sg.dataset.i];
+    const k = Array.prototype.indexOf.call(sg.children, w);
+    if (g && g.w && g.w[k]){ seekTo(noteVid, g.w[k][0]); follow = true; paintFollow(); hideBar(); return; }
+  }
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed) hideBar();
 });
@@ -2113,7 +2245,12 @@ if (window.visualViewport){
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushNote(); else resumeRuns(); });
 window.addEventListener('pagehide', () => { flushNote(); });
 window.addEventListener('online', resumeRuns);
-setInterval(markNow, 1000);
+setInterval(tick, 100);
+(function(){
+  const body = $('trBody'), pause = () => { if (follow){ follow = false; paintFollow(); } };
+  body.addEventListener('wheel', pause, { passive:true });
+  body.addEventListener('touchmove', pause, { passive:true });
+})();
 
 /* ---------- Wiring ---------- */
 $('prev').innerHTML = ICON.prev; $('next').innerHTML = ICON.next;
