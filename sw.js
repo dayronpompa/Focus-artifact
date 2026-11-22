@@ -1,5 +1,5 @@
 // Network first, cache as fallback: updates arrive immediately, the app still opens offline.
-const CACHE = 'focus-v2';
+const CACHE = 'focus-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -12,8 +12,10 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const r = e.request;
   if (r.method !== 'GET' || new URL(r.url).origin !== location.origin) return;
+  // Timestamp links (?v=...&t=...) are the same page: do not store one copy per link, and serve the app when offline.
+  const plain = !new URL(r.url).search;
   e.respondWith(fetch(r).then(res => {
-    if (res.ok){ const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
+    if (res.ok && plain){ const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
     return res;
-  }).catch(() => caches.match(r)));
+  }).catch(() => caches.match(r).then(m => m || (r.mode === 'navigate' ? caches.match('index.html') : undefined))));
 });
