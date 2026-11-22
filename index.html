@@ -64,9 +64,15 @@ svg{display:block}
 @media (max-width:899px){ .stage.dual{max-height:64dvh;overflow-y:auto} }
 
 /* Library */
-.lib{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-.lib-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:12px 16px;background:rgba(10,12,16,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.lib-head h1{flex:1;margin:0;font-size:20px;font-weight:650;letter-spacing:.2px}
+.lib{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.lib-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.trpane{flex:1;min-height:0;display:flex;flex-direction:column}
+.lib-head{flex:none;z-index:2;display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(10,12,16,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.lib-head .btn{height:38px;padding:0 12px;white-space:nowrap;font-size:15px}
+.sideb{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted);transition:background .15s,color .15s}
+.sideb:hover{background:rgba(255,255,255,.07);color:var(--text)}
+.sideb svg{width:20px;height:20px}
+#sideOpen{display:none;position:absolute;left:14px;top:14px;z-index:3;background:rgba(255,255,255,.05)}
 .btn{height:44px;padding:0 16px;border-radius:12px;background:var(--card);font-weight:550}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn.on{background:rgba(143,176,255,.16);color:var(--accent)}
@@ -187,26 +193,35 @@ body.resizing iframe{pointer-events:none}
 }
 
 /* Notes and transcript */
-.notes{display:none;position:relative;flex:1;min-height:0;min-width:0;flex-direction:column;background:var(--bg)}
-.app.notes-open .notes{display:flex}
-.np-head{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);background:rgba(10,12,16,.86)}
-.ntabs{display:flex;gap:4px;padding:3px;background:var(--panel);border-radius:12px}
-.ntabs button{height:36px;padding:0 12px;border-radius:9px;color:var(--muted);font-weight:550;font-size:14px}
+.notes{--px:18px;display:none;position:relative;flex:1;min-height:0;min-width:0;flex-direction:column;background:#111318}
+.app.notes-open .notes{display:flex;animation:slidein .22s cubic-bezier(.2,.8,.2,1)}
+@keyframes slidein{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.app.notes-open .notes{animation:none}}
+.np-head{flex:none;display:flex;align-items:center;gap:6px;padding:8px 10px}
+.ntabs{display:flex;gap:2px;padding:3px;background:var(--panel);border-radius:11px}
+.ntabs button{height:32px;padding:0 12px;border-radius:8px;color:var(--muted);font-weight:550;font-size:14px}
 .ntabs button.on{background:var(--card);color:var(--text)}
-.notes .mini{height:38px;background:var(--panel);font-size:13px;padding:0 10px;white-space:nowrap}
-.notes .mini.go{background:rgba(143,176,255,.16);color:var(--accent);font-weight:600}
-.np-pane{flex:1;min-height:0;display:flex;flex-direction:column}
+.notes .mini,.trpane .mini{height:34px;background:var(--panel);font-size:13px;padding:0 10px;white-space:nowrap}
+.notes .mini.go,.trpane .mini.go{background:rgba(143,176,255,.16);color:var(--accent);font-weight:600}
+#notesTr{display:none}
 .np-none{flex:1;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
-.tb{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid var(--line)}
-.tb button{flex:none;min-width:36px;height:36px;padding:0 8px;border-radius:9px;background:var(--panel);font-size:14px;font-weight:650;white-space:nowrap}
-.tb button.on{background:rgba(143,176,255,.2);color:var(--accent)}
-.tb i{flex:none;width:1px;height:22px;background:var(--line);margin:0 3px}
-.swatches{flex:none;display:flex;flex-direction:column;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.page{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.notes{container-type:inline-size}
+@container (max-width:470px){.notes .pg-title,.notes .ed{--px:22px}.notes .pg-title{font-size:22px}}
+.pg-title{margin:0;padding:22px var(--px) 10px;font-size:30px;line-height:1.2;font-weight:700;letter-spacing:-.2px;word-break:break-word}
+.tbwrap{position:sticky;top:0;z-index:2;background:#111318;padding:4px 10px 6px;border-bottom:1px solid var(--line)}
+.tb{display:flex;flex-wrap:wrap;align-items:center;gap:2px}
+.tb button{flex:none;min-width:30px;height:32px;padding:0 6px;border-radius:7px;color:var(--muted);font-size:14px;font-weight:650;white-space:nowrap;transition:background .12s,color .12s}
+.tb button:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.tb button.on{background:rgba(143,176,255,.16);color:var(--accent)}
+.tb i{flex:none;width:1px;height:18px;background:var(--line);margin:0 2px}
+@media (max-width:899px){.pg-title{font-size:24px;padding-top:14px}}
+.swatches{display:flex;flex-direction:column;gap:8px;padding:8px 6px 4px}
 .swrow{display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none}
 .swrow span{flex:none;width:62px;font-size:12px;color:var(--muted)}
-.swrow button{flex:none;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);font-size:13px;font-weight:700}
-.ed{position:relative;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 16px calc(96px + env(safe-area-inset-bottom));outline:none;font-size:16px;line-height:1.55;word-break:break-word;-webkit-user-select:text;user-select:text}
-.ed.blank::before{content:attr(data-ph);position:absolute;left:16px;right:16px;top:14px;color:var(--muted);pointer-events:none}
+.swrow button{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);font-size:13px;font-weight:700}
+.ed{position:relative;min-height:60vh;padding:14px var(--px) calc(140px + env(safe-area-inset-bottom));outline:none;font-size:16px;line-height:1.6;word-break:break-word;-webkit-user-select:text;user-select:text}
+.ed.blank::before{content:attr(data-ph);position:absolute;left:var(--px);right:var(--px);top:14px;color:var(--muted);pointer-events:none}
 .ed h1{font-size:24px;line-height:1.25;margin:.7em 0 .3em}
 .ed h2{font-size:20px;line-height:1.3;margin:.7em 0 .3em}
 .ed h3{font-size:17px;margin:.7em 0 .3em}
@@ -233,6 +248,8 @@ body.resizing iframe{pointer-events:none}
 .selbar .mini.go{background:var(--accent);color:var(--accent-ink)}
 @media (max-width:899px){
   .app.notes-open .lib{display:none}
+  #sideClose{display:none}
+  #notesTr{display:block}
   .app.notes-open .now-sub{display:none}
   .app.notes-open .now{padding:8px 16px 0}
   .app.notes-open .now-title{font-size:15px;-webkit-line-clamp:1}
@@ -241,7 +258,19 @@ body.resizing iframe{pointer-events:none}
   .app.typing .player{width:min(100%,calc(22dvh * 16 / 9));margin:0 auto}
 }
 @media (min-width:900px){
-  .app.notes-open .notes{order:4;flex:none;width:min(480px,38vw);border-left:1px solid var(--line)}
+  .notes{--px:44px}
+  .app.notes-open .notes{order:5;flex:none;width:clamp(320px,var(--notesw,520px),calc(100vw - var(--libw,380px) - 400px));border-left:1px solid var(--line)}
+  .app.notes-open.side-closed .notes{width:clamp(320px,var(--notesw,520px),calc(100vw - 400px))}
+  .app.notes-open .lib{width:clamp(260px,var(--libw,380px),calc(100vw - 720px))}
+  .app.notes-open .controls .spacer{display:none}
+  .app.notes-open .controls{gap:6px}
+  .app.notes-open .chip{height:38px;padding:0 12px;font-size:13.5px}
+  .app.notes-open .ib{width:40px;height:40px}
+  #notesResizer{order:4}
+  .app:not(.notes-open) #notesResizer{display:none}
+  .app.side-closed .lib,.app.side-closed #resizer{display:none}
+  .app.side-closed #sideOpen{display:grid}
+  .stage{position:relative}
   .app.notes-open .stage{padding:16px 20px}
 }
 @media (orientation:landscape) and (max-height:520px) and (max-width:899px){
@@ -252,6 +281,7 @@ body.resizing iframe{pointer-events:none}
 <body>
 <div class="app" id="app">
   <section class="stage" id="stage">
+    <button class="sideb" id="sideOpen" aria-label="Show sidebar" title="Show sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/></svg></button>
     <div class="deck" id="deck0">
       <div class="player" id="player"></div>
       <div class="now">
@@ -279,34 +309,37 @@ body.resizing iframe{pointer-events:none}
 
   <aside class="lib" id="lib">
     <div class="lib-head">
-      <h1>Library</h1>
+      <button class="sideb" id="sideClose" aria-label="Hide sidebar" title="Hide sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/></svg></button>
+      <div class="ntabs"><button id="libTab" class="on">Library</button><button id="trTab">Transcript</button></div>
+      <span class="spacer"></span>
       <button class="btn" id="editBtn">Edit</button>
       <button class="btn primary" id="addBtn">+ Add</button>
     </div>
-    <div id="folders"></div>
-    <div class="bulk" id="bulk" hidden></div>
-  </aside>
-  <aside class="notes" id="notes" aria-label="Notes and transcript">
-    <div class="np-head">
-      <div class="ntabs">
-        <button id="tabNote" class="on">Notes</button>
-        <button id="tabTr">Transcript</button>
-      </div>
-      <span class="spacer"></span>
-      <button class="mini go" id="copyNotion">Copy for Notion</button>
-      <button class="mini" id="notesClose" aria-label="Close notes">✕</button>
+    <div class="lib-scroll" id="libPane">
+      <div id="folders"></div>
+      <div class="bulk" id="bulk" hidden></div>
     </div>
-    <div class="np-none" id="npNone" hidden>Play a video to take notes on it.</div>
-    <div class="np-pane" id="paneNote">
-      <div class="tb" id="tb"></div>
-      <div class="swatches" id="swatches" hidden></div>
-      <div class="ed blank" id="editor" contenteditable="true" spellcheck="true" data-ph="Write notes here. Quotes you save from the transcript land here too."></div>
-    </div>
-    <div class="np-pane" id="paneTr" hidden>
+    <div class="trpane" id="trPane" hidden>
+      <div class="np-none" id="trNone">Play a video to see its transcript.</div>
       <div class="tr-bar" id="trBar"></div>
       <div class="tr-body" id="trBody"></div>
     </div>
     <div class="selbar" id="selBar" hidden></div>
+  </aside>
+  <div class="resizer" id="notesResizer" role="separator" aria-orientation="vertical" aria-label="Resize notes" tabindex="0" title="Drag to resize · double-click to reset"></div>
+  <aside class="notes" id="notes" aria-label="Notes">
+    <div class="np-head">
+      <button class="mini" id="notesTr">‹ Transcript</button>
+      <span class="spacer"></span>
+      <button class="mini go" id="copyNotion">Copy for Notion</button>
+      <button class="sideb" id="notesClose" aria-label="Close notes" title="Close notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="np-none" id="npNone" hidden>Play a video to take notes on it.</div>
+    <div class="page" id="page">
+      <h1 class="pg-title" id="pgTitle"></h1>
+      <div class="tbwrap"><div class="tb" id="tb"></div><div class="swatches" id="swatches" hidden></div></div>
+      <div class="ed blank" id="editor" contenteditable="true" spellcheck="true" data-ph="Write notes here. Quotes you save from the transcript land here too."></div>
+    </div>
   </aside>
   <div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize library" tabindex="0" title="Drag to resize · double-click to reset"></div>
 </div>
@@ -1188,7 +1221,8 @@ const runs = lsGet(RUNS_KEY, {});
 const ui = lsGet(UI_KEY, {});
 const noted = new Set();                       // video ids that have a note
 const yt = [{ ready:false, t:0 }, { ready:false, t:0 }];
-let notesOpen = !!ui.open, noteTab = ui.tab === 'tr' ? 'tr' : 'note';
+let notesOpen = !!ui.open, leftTab = ui.left === 'tr' ? 'tr' : 'lib', sideClosed = !!ui.side;
+const wide = () => window.innerWidth >= 900;
 let noteVid = null, noteTitle = '', noteDirty = false, noteTimer = 0, noteSeq = 0;
 let curTr = null, pend = null, lastRange = null, pickedLink = null, selTimer = 0, askDone = null;
 const trErr = {}, watching = new Set(), starting = new Set();
@@ -1337,7 +1371,7 @@ async function openLink(){
     f.videos.push(v); save();
     hit = { folder:f, video:v };
   }
-  if (noted.has(vid)){ notesOpen = true; ui.open = true; lsSet(UI_KEY, ui); }
+  if (noted.has(vid)){ notesOpen = true; if (wide()){ leftTab = 'tr'; sideClosed = false; } saveUi(); }
   play(hit.folder.id, hit.video.id, 0, t);
 }
 
@@ -1377,8 +1411,9 @@ function ask(o){
 }
 
 /* ----- Floating action bar at the bottom of the notes panel ----- */
-function bar(text, btns){
+function bar(text, btns, host){
   const b = $('selBar');
+  if (host && b.parentNode !== host) host.append(b);
   if (pickedLink){ pickedLink.classList.remove('pick'); pickedLink = null; }
   b.replaceChildren(h('span', { class:'sb-t' }, text));
   for (const x of btns) b.append(h('button', { class:'mini' + (x[2] ? ' ' + x[2] : ''), onclick:x[1] }, x[0]));
@@ -1415,33 +1450,36 @@ function writeNote(s){
 }
 function flushNote(){ return writeNote(snapNote()).catch(() => toast('This note could not be saved on this device.')); }
 function paintPanes(){
-  const has = !!noteVid;
-  $('npNone').hidden = has;
-  $('paneNote').hidden = !has || noteTab !== 'note';
-  $('paneTr').hidden = !has || noteTab !== 'tr';
-  $('copyNotion').hidden = !has;
-  $('tabNote').classList.toggle('on', noteTab === 'note');
-  $('tabTr').classList.toggle('on', noteTab === 'tr');
-}
-function setTab(t){
-  noteTab = t; ui.tab = t; lsSet(UI_KEY, ui);
-  hideBar(); paintPanes();
-  if (t === 'tr') trBar();
-}
-function setNotes(on){
-  notesOpen = on; ui.open = on; lsSet(UI_KEY, ui);
-  if (!on){ flushNote(); $('app').classList.remove('typing'); fitKeyboard(); }
-  syncNotes();
-}
-/* Called on every render: keeps the panel pointed at the video in the active player. */
-function syncNotes(){
-  $('app').classList.toggle('notes-open', notesOpen);
+  const has = !!noteVid, app = $('app');
+  app.classList.toggle('notes-open', notesOpen);
+  app.classList.toggle('side-closed', sideClosed);
   $('notesBtn').classList.toggle('on', notesOpen);
-  if (!notesOpen) return;
+  $('libPane').hidden = leftTab !== 'lib';
+  $('trPane').hidden = leftTab !== 'tr';
+  $('editBtn').hidden = $('addBtn').hidden = leftTab !== 'lib';
+  $('libTab').classList.toggle('on', leftTab === 'lib');
+  $('trTab').classList.toggle('on', leftTab === 'tr');
+  $('trNone').hidden = has; $('trBar').hidden = $('trBody').hidden = !has;
+  $('npNone').hidden = has; $('page').hidden = !has; $('copyNotion').hidden = !has;
+  if ($('pgTitle').textContent !== noteTitle) $('pgTitle').textContent = noteTitle;
+}
+function saveUi(){ ui.open = notesOpen; ui.left = leftTab; ui.side = sideClosed; lsSet(UI_KEY, ui); }
+function setLeft(t){ leftTab = t; saveUi(); hideBar(); paintPanes(); if (t === 'tr') trBar(); }
+function setSide(closed){ sideClosed = closed; saveUi(); hideBar(); paintPanes(); }
+/* Desktop: notes open as a page on the right and the transcript takes the left sidebar. Phone: notes replace the area under the player. */
+function setNotes(on){
+  notesOpen = on;
+  if (on && wide()){ sideClosed = false; leftTab = 'tr'; }
+  if (!on){ flushNote(); $('app').classList.remove('typing'); fitKeyboard(); if (wide() && leftTab === 'tr') leftTab = 'lib'; }
+  saveUi(); hideBar(); paintPanes();
+  if (leftTab === 'tr') trBar();
+}
+/* Called on every render: keeps notes and transcript pointed at the video in the active player. */
+function syncNotes(){
   const c = notesCtx(), vid = c ? c.vid : null;
   if (vid === noteVid){ if (c) noteTitle = c.title; paintPanes(); return; }
-  const snap = snapNote();                     // unsaved edits belong to the previous video
   noteVid = vid; noteTitle = c ? c.title : '';
+  const snap = snapNote();                     // unsaved edits belong to the previous video
   const seq = ++noteSeq;
   writeNote(snap).catch(() => {});
   curTr = null; lastRange = null; hideBar();
@@ -1607,7 +1645,7 @@ function insertBlocks(nodes){
   }
   const r = document.createRange(); r.selectNodeContents(anchor); r.collapse(false); lastRange = r;
   onEdit();
-  if (noteTab === 'note') anchor.scrollIntoView({ block:'nearest' });
+  if (notesOpen) anchor.scrollIntoView({ block:'nearest' });
 }
 function insertInline(node, range){
   const ed = $('editor');
@@ -1889,9 +1927,9 @@ function readSel(){
   return { s:curTr.segs[first].s, e:curTr.segs[last].e, lines, text:lines.map(l => l.text).join(' ') };
 }
 function checkSel(){
-  if (!notesOpen || noteTab !== 'tr') return;
+  if (leftTab !== 'tr' || !$('lib').offsetParent) return;
   const q = readSel(); if (!q) return;
-  bar(fmtT(q.s) + '–' + fmtT(q.e) + '  ' + q.text, [['Save quote', () => saveQuote(false), 'go'], ['Link only', () => saveQuote(true)]]);
+  bar(fmtT(q.s) + '–' + fmtT(q.e) + '  ' + q.text, [['Save quote', () => saveQuote(false), 'go'], ['Link only', () => saveQuote(true)]], $('lib'));
   pend = q;
 }
 async function saveQuote(linkOnly){
@@ -1911,6 +1949,7 @@ async function saveQuote(linkOnly){
   hideBar();
   try { window.getSelection().removeAllRanges(); } catch(e){}
   toast('Added to notes');
+  if (!notesOpen && wide()) setNotes(true);
 }
 async function renameSpeaker(raw){
   const tr = curTr; if (!tr) return;
@@ -1930,7 +1969,7 @@ function nowPara(){
   return hit;
 }
 function markNow(){
-  if (!notesOpen || noteTab !== 'tr' || !curTr) return;
+  if (leftTab !== 'tr' || !curTr) return;
   const hit = nowPara(), old = $('trBody').querySelector('.tp.on');
   if (old === hit) return;
   if (old) old.classList.remove('on');
@@ -1978,8 +2017,44 @@ buildToolbar();
 try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(e){}
 $('notesBtn').addEventListener('click', () => setNotes(!notesOpen));
 $('notesClose').addEventListener('click', () => setNotes(false));
-$('tabNote').addEventListener('click', () => setTab('note'));
-$('tabTr').addEventListener('click', () => setTab('tr'));
+$('libTab').addEventListener('click', () => setLeft('lib'));
+$('trTab').addEventListener('click', () => setLeft('tr'));
+$('sideClose').addEventListener('click', () => setSide(true));
+$('sideOpen').addEventListener('click', () => setSide(false));
+$('notesTr').addEventListener('click', () => { setNotes(false); setLeft('tr'); });
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key !== '\\') return;   // Cmd/Ctrl + \ toggles the sidebar
+  e.preventDefault(); if (wide()) setSide(!sideClosed);
+});
+/* Drag the left edge of the notes page to resize it */
+(function(){
+  const KEY = 'focus-notesw', MIN = 340, DEF = 520;
+  const root = document.documentElement, rz = $('notesResizer'), pane = $('notes');
+  const max = () => Math.max(MIN + 40, Math.min(960, window.innerWidth - 520));
+  const clamp = w => Math.round(Math.max(MIN, Math.min(max(), w)));
+  const apply = w => root.style.setProperty('--notesw', w + 'px');
+  const store = w => { try { localStorage.setItem(KEY, String(w)); } catch(e){} };
+  try { const w = parseInt(localStorage.getItem(KEY), 10); if (w) apply(clamp(w)); } catch(e){}
+  rz.addEventListener('pointerdown', e => {
+    e.preventDefault(); rz.setPointerCapture(e.pointerId);
+    rz.classList.add('drag'); document.body.classList.add('resizing');
+    const x0 = e.clientX, w0 = pane.getBoundingClientRect().width;
+    const move = ev => apply(clamp(w0 + x0 - ev.clientX));
+    const up = () => {
+      rz.classList.remove('drag'); document.body.classList.remove('resizing');
+      rz.removeEventListener('pointermove', move); rz.removeEventListener('pointerup', up); rz.removeEventListener('pointercancel', up);
+      store(clamp(pane.getBoundingClientRect().width));
+    };
+    rz.addEventListener('pointermove', move); rz.addEventListener('pointerup', up); rz.addEventListener('pointercancel', up);
+  });
+  rz.addEventListener('dblclick', () => { apply(DEF); store(DEF); });
+  rz.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const w = clamp(pane.getBoundingClientRect().width + (e.key === 'ArrowLeft' ? 24 : -24));
+    apply(w); store(w);
+  });
+})();
 $('copyNotion').addEventListener('click', copyForNotion);
 $('askOk').addEventListener('click', () => { if (askDone) askDone(true); });
 $('askCancel').addEventListener('click', () => { if (askDone) askDone(null); });
@@ -2005,7 +2080,7 @@ $('askBg').addEventListener('click', e => { if (e.target === $('askBg') && askDo
     e.preventDefault();
     if (!a.classList.contains('ts')){ window.open(a.href, '_blank', 'noopener'); return; }
     if (!seekTo(a.dataset.v, +a.dataset.t)) toast('That video is not in the library.');
-    bar(a.textContent, [['Rename', renameLink, 'go'], ['Remove', removeLink]]);
+    bar(a.textContent, [['Rename', renameLink, 'go'], ['Remove', removeLink]], $('notes'));
     pickedLink = a; a.classList.add('pick');
   });
   ed.addEventListener('focus', () => { $('app').classList.add('typing'); fitKeyboard(); });
@@ -2018,7 +2093,7 @@ $('trBody').addEventListener('click', e => {
   if (tt){
     const t = +tt.dataset.t;
     seekTo(noteVid, t);
-    bar(fmtT(t), [['Add link to notes', () => saveQuote(true), 'go']]);
+    bar(fmtT(t), [['Add link to notes', () => saveQuote(true), 'go']], $('lib'));
     pend = { s:t, e:0, text:'', lines:[] };
     return;
   }
