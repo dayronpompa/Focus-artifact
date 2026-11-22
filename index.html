@@ -224,6 +224,29 @@ body.resizing iframe{pointer-events:none}
 .tb i{flex:none;width:1px;height:18px;background:var(--line);margin:0 2px}
 @media (max-width:899px){.pg-title{font-size:24px;padding-top:14px}}
 .swatches{display:flex;flex-direction:column;gap:8px;padding:8px 6px 4px}
+.corow{display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px 4px}
+.corow button{height:32px;padding:0 10px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--text)}
+/* Toggle callouts: a coloured block with an icon and a heading that folds its contents away */
+.co{margin:.7em 0;border-radius:10px;padding:8px 12px 8px 8px;background:var(--co-bg);border:1px solid var(--co-line)}
+.co[data-k="idea"]{--co-bg:rgba(202,152,73,.13);--co-line:rgba(202,152,73,.28)}
+.co[data-k="video"]{--co-bg:rgba(94,135,201,.14);--co-line:rgba(94,135,201,.32)}
+.co[data-k="note"]{--co-bg:rgba(155,155,155,.10);--co-line:rgba(155,155,155,.22)}
+.co[data-k="key"]{--co-bg:rgba(223,84,82,.12);--co-line:rgba(223,84,82,.3)}
+.co-h{display:flex;align-items:center;gap:6px;min-height:30px}
+.co-t{flex:none;width:22px;height:22px;display:grid;place-items:center;border-radius:6px;color:var(--muted);font-size:12px;cursor:pointer;transition:transform .2s;-webkit-user-select:none;user-select:none}
+.co-t:hover,.co-i:hover{background:rgba(255,255,255,.08)}
+.co[data-open="0"] .co-t{transform:rotate(-90deg)}
+.co-i{flex:none;width:26px;height:26px;display:grid;place-items:center;border-radius:6px;font-size:17px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.co-l{flex:1;min-width:0;font-weight:650;font-size:17px;outline:none}
+.co-b{padding:2px 0 2px 56px}
+.co-b > :first-child{margin-top:.2em}
+.co[data-open="0"] .co-b{display:none}
+.spk-w{display:flex;align-items:center;gap:6px;margin-bottom:1px}
+.spk-w .spk{margin:0}
+.swap{width:22px;height:20px;border-radius:6px;color:var(--muted);font-size:12px;opacity:0;transition:opacity .15s}
+.tp:hover .swap,.swap:focus-visible{opacity:1}
+@media (hover:none){.swap{opacity:.6}}
+.swap:hover{background:rgba(255,255,255,.08);color:var(--text)}
 .swrow{display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none}
 .swrow span{flex:none;width:62px;font-size:12px;color:var(--muted)}
 .swrow button{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);font-size:13px;font-weight:700}
@@ -363,7 +386,7 @@ body.resizing iframe{pointer-events:none}
     <div class="np-none" id="npNone" hidden>Play a video to take notes on it.</div>
     <div class="page" id="page">
       <h1 class="pg-title" id="pgTitle"></h1>
-      <div class="tbwrap"><div class="tb" id="tb"></div><div class="swatches" id="swatches" hidden></div></div>
+      <div class="tbwrap"><div class="tb" id="tb"></div><div class="swatches" id="swatches" hidden></div><div class="corow" id="coRow" hidden></div></div>
       <div class="ed blank" id="editor" contenteditable="true" spellcheck="true" data-ph="Write notes here. Quotes you save from the transcript land here too."></div>
     </div>
   </aside>
@@ -1238,6 +1261,9 @@ const ENGINES = {
 };
 const OK_TAGS = new Set(['P','DIV','BR','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','B','STRONG','I','EM','U','S','STRIKE','DEL','SPAN','FONT','A','MARK','HR','CODE']);
 const DROP_TAGS = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','TEMPLATE','NOSCRIPT','LINK','META','IMG','VIDEO','AUDIO','FORM','INPUT','BUTTON','TEXTAREA','SELECT','BASE','HEAD','TITLE']);
+const CO_KINDS = { idea:['💡', 'Video idea'], video:['🎬', 'This video'], note:['📝', 'Note'], key:['❗', 'Key point'] };
+const CO_ORDER = ['idea', 'video', 'note', 'key'];
+const CO_CLASSES = new Set(['co', 'co-h', 'co-t', 'co-i', 'co-l', 'co-b']);
 const OK_STYLE = ['color','background-color','font-weight','font-style','text-decoration','text-decoration-line'];
 
 function lsGet(k, d){ try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch(e){ return d; } }
@@ -1315,12 +1341,18 @@ function sanitize(html){
       walk(c);
       if (!OK_TAGS.has(c.tagName)){ c.replaceWith(...Array.from(c.childNodes)); continue; }
       const href = c.tagName === 'A' ? (c.getAttribute('href') || '') : '';
+      const cls = c.getAttribute('class') || '', dk = c.getAttribute('data-k') || '', dop = c.getAttribute('data-open');
       const col = c.tagName === 'FONT' ? (c.getAttribute('color') || '') : '';
       const css = OK_STYLE.map(p => {
         const v = c.style.getPropertyValue(p);
         return v && !/url|expression|[;{}<>]/i.test(v) ? p + ':' + v : '';
       }).filter(Boolean).join(';');
       for (const a of Array.from(c.attributes)) c.removeAttribute(a.name);
+      if ((c.tagName === 'DIV' || c.tagName === 'SPAN') && CO_CLASSES.has(cls)){
+        c.setAttribute('class', cls);
+        if (cls === 'co'){ c.setAttribute('data-k', CO_KINDS[dk] ? dk : 'note'); c.setAttribute('data-open', dop === '0' ? '0' : '1'); }
+        if (cls === 'co-t' || cls === 'co-i') c.setAttribute('contenteditable', 'false');
+      }
       if (css) c.setAttribute('style', css);
       if (col && /^[#\w(),.\s%]+$/.test(col)) c.setAttribute('color', col);
       if (c.tagName === 'A'){
@@ -1476,7 +1508,7 @@ function notesCtx(){
   const slot = activeSlot(), c = findCur(slot);
   return c && c.v.vid ? { vid:c.v.vid, title:c.v.title, slot } : null;
 }
-function edBlank(){ const ed = $('editor'); return !ed.textContent.trim() && !ed.querySelector('a.ts,hr,li,blockquote'); }
+function edBlank(){ const ed = $('editor'); return !ed.textContent.trim() && !ed.querySelector('a.ts,hr,li,blockquote,.co'); }
 function onEdit(){
   noteDirty = true;
   $('editor').classList.toggle('blank', edBlank());
@@ -1611,6 +1643,8 @@ const TB = [
   { k:'insertOrderedList', t:'1.', a:'Numbered list', run:() => edExec('insertOrderedList') },
   { k:'BLOCKQUOTE', t:'❝', a:'Quote', run:toggleQuote },
   null,
+  { k:'callout', t:'▣ Callout', a:'Toggle callout: video idea, this video, note or key point', run:() => { $('coRow').hidden = !$('coRow').hidden; $('swatches').hidden = true; paintTb(); } },
+  null,
   { k:'color', t:'Color', a:'Text and highlight colors', run:() => { $('swatches').hidden = !$('swatches').hidden; paintTb(); } },
   null,
   { k:'time', t:'+ Time', a:'Link the current moment of the video', run:addMoment }
@@ -1641,7 +1675,14 @@ function buildToolbar(){
       onEdit();
     })
   );
-  for (const el of [tb, sw, $('selBar')]){ el.addEventListener('mousedown', keepFocus); el.addEventListener('pointerdown', keepFocus); }
+  const cr = $('coRow');
+  for (const k of CO_ORDER){
+    const b = h('button', { type:'button', onclick:() => addCallout(k) }, CO_KINDS[k][0] + ' ' + CO_KINDS[k][1]);
+    b.style.background = 'var(--co-bg)'; b.style.border = '1px solid var(--co-line)';
+    b.setAttribute('data-k', k); b.classList.add('co'); b.style.margin = '0';
+    cr.append(b);
+  }
+  for (const el of [tb, sw, cr, $('selBar')]){ el.addEventListener('mousedown', keepFocus); el.addEventListener('pointerdown', keepFocus); }
 }
 function paintTb(){
   const ed = $('editor'), sel = window.getSelection();
@@ -1650,6 +1691,7 @@ function paintTb(){
   for (const b of $('tb').querySelectorAll('button')){
     const k = b.dataset.k; let on = false;
     if (k === 'color') on = !$('swatches').hidden;
+    else if (k === 'callout') on = !$('coRow').hidden;
     else if (!inside) on = false;
     else if (k === 'BLOCKQUOTE') on = inQuote();
     else if (/^H[1-3]$/.test(k)) on = blk === k;
@@ -1663,7 +1705,10 @@ function mdShortcut(e){
   const sel = window.getSelection(), ed = $('editor');
   if (!sel.rangeCount || !sel.isCollapsed || sel.anchorNode === ed) return;
   let blk = sel.anchorNode;
-  while (blk && blk.parentNode !== ed) blk = blk.parentNode;
+  const el0 = blk.nodeType === 1 ? blk : blk.parentNode, cb = el0 && el0.closest ? el0.closest('.co-b') : null;
+  const box = cb && ed.contains(cb) ? cb : ed;      // inside a callout, its body is the container
+  if (el0 && el0.closest && el0.closest('.co-l')) return;
+  while (blk && blk.parentNode !== box) blk = blk.parentNode;
   if (!blk || /^(H[1-3]|UL|OL|BLOCKQUOTE)$/.test(blk.nodeName)) return;
   const r = document.createRange();
   r.setStart(blk, 0); r.setEnd(sel.anchorNode, sel.anchorOffset);
@@ -1677,23 +1722,46 @@ function mdShortcut(e){
   flatten1(); onEdit(); paintTb();
 }
 /* Put whole blocks (a saved quote, a link) after the line the caret was last on, or at the end. */
-function insertBlocks(nodes){
+/* Put whole blocks after the line the caret was last on. Inside an open callout they go into the callout (unless top is set). */
+function insertBlocks(nodes, top){
   const ed = $('editor');
-  let anchor = null;
+  let anchor = null, box = ed;
   if (lastRange && ed.contains(lastRange.endContainer)){
     let n = lastRange.endContainer;
-    if (n === ed) n = ed.childNodes[lastRange.endOffset - 1] || null;
-    while (n && n.parentNode !== ed) n = n.parentNode;
+    const el = n.nodeType === 1 ? n : n.parentNode, cb = el && el.closest ? el.closest('.co-b') : null;
+    if (!top && cb && ed.contains(cb)) box = cb;
+    if (n === box) n = box.childNodes[lastRange.endOffset - 1] || null;
+    while (n && n.parentNode !== box) n = n.parentNode;
     anchor = n;
   }
-  if (edBlank()){ ed.replaceChildren(); anchor = null; }
+  if (edBlank()){ ed.replaceChildren(); anchor = null; box = ed; }
   for (const n of nodes){
-    if (anchor && anchor.parentNode === ed) anchor.after(n); else ed.append(n);
+    if (anchor && anchor.parentNode === box) anchor.after(n); else box.append(n);
     anchor = n;
   }
   const r = document.createRange(); r.selectNodeContents(anchor); r.collapse(false); lastRange = r;
   onEdit();
   if (notesOpen) anchor.scrollIntoView({ block:'nearest' });
+}
+function makeCallout(k){
+  const first = h('p', null, h('br'));
+  const co = h('div', { class:'co', 'data-k':k, 'data-open':'1' },
+    h('div', { class:'co-h' },
+      h('span', { class:'co-t', contenteditable:'false', title:'Fold / unfold' }, '▼'),
+      h('span', { class:'co-i', contenteditable:'false', title:'Change type' }, CO_KINDS[k][0]),
+      h('span', { class:'co-l' }, CO_KINDS[k][1])),
+    h('div', { class:'co-b' }, first));
+  return { co, first };
+}
+function addCallout(k){
+  $('coRow').hidden = true; paintTb();
+  const { co, first } = makeCallout(k);
+  insertBlocks([co, h('p', null, h('br'))], true);
+  const ed = $('editor'), lab = co.querySelector('.co-l'), r = document.createRange();
+  ed.focus(); r.selectNodeContents(lab);            // title selected, ready to type over
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  lastRange = r.cloneRange();
+  onEdit();
 }
 function insertInline(node, range){
   const ed = $('editor');
@@ -1766,6 +1834,12 @@ function noteExport(){
     const href = a.getAttribute('href');
     for (const at of Array.from(a.attributes)) a.removeAttribute(at.name);
     a.setAttribute('href', href);
+  }
+  for (const co of Array.from(tpl.content.querySelectorAll('.co')).reverse()){
+    const k = CO_KINDS[co.getAttribute('data-k')] || CO_KINDS.note;
+    const lab = co.querySelector('.co-l'), body = co.querySelector('.co-b');
+    const hd = h('h3', null, k[0] + ' ' + ((lab && lab.textContent.trim()) || k[1]));
+    co.replaceWith(hd, ...(body ? Array.from(body.childNodes) : []));
   }
   const title = noteTitle || 'Notes', open = deepLink(noteVid, 0);
   const head = document.createElement('div');
@@ -1862,11 +1936,13 @@ async function renderTranscript(keepScroll){
   const frag = document.createDocumentFragment();
   for (const p of groupSegs(curTr)){
     const tx = h('div', { class:'tx' });
-    if (p.sp) tx.append(h('span', { class:'spk', 'data-sp':p.sp, role:'button', title:'Rename this speaker' }, spName(curTr, p.sp)));
+    if (p.sp) tx.append(h('div', { class:'spk-w' },
+      h('span', { class:'spk', 'data-sp':p.sp, role:'button', title:'Rename this speaker' }, spName(curTr, p.sp)),
+      h('button', { class:'swap', 'data-i0':String(p.idx[0]), 'data-i1':String(p.idx[p.idx.length - 1]), title:'Wrong speaker? Switch this part', 'aria-label':'Switch speaker' }, '⇄')));
     for (const i of p.idx){
       const g = curTr.segs[i], sg = h('span', { class:'sg' + (g.w ? ' wd' : ''), 'data-i':String(i) });
       if (g.w) for (const w of g.w) sg.append(h('span', { class:'w' }, w[2]), ' ');
-      else sg.append(g.t + ' ');
+      else sg.append(g.t.replace(/\s*>>\s*/g, ' ').trim() + ' ');
       tx.append(sg);
     }
     frag.append(h('div', { class:'tp', 'data-s':String(p.s) }, h('button', { class:'tt', 'data-t':String(Math.floor(p.s)) }, fmtT(p.s)), tx));
@@ -1902,10 +1978,56 @@ function trBar(){
     else st.textContent = cfg.token ? 'No transcript yet.' : 'Add your Apify key to pull transcripts.';
     if (!curTr) btns.push(h('button', { class:'mini go', onclick:() => startTranscript('captions') }, 'Get captions'));
     if (!curTr || curTr.kind !== 'speakers') btns.push(paidBtn('Split by speaker', () => startTranscript('speakers')));
+    if (curTr && curTr.kind === 'captions' && curTr.segs.some(x => x.t.includes('>>'))) btns.push(h('button', { class:'mini', onclick:pasteSpeakers, title:'Apply a speaker code prepared for this video' }, 'Paste speakers'));
     if (curTr) btns.push(h('button', { class:'mini' + (follow ? ' go' : ''), id:'followBtn', title:'Keep the spoken line in view',
       onclick:() => { follow = true; paintFollow(); scrollNow(); } }, follow ? 'Following' : 'Follow'));
   }
   b.append(st, ...btns, h('button', { class:'mini', 'aria-label':'Transcript settings', title:'Transcript settings', onclick:openSettings }, '⚙'));
+}
+/* Give lines i0..i1 the next speaker in the transcript (fixes a wrong label). */
+async function switchSpeaker(i0, i1){
+  const tr = curTr; if (!tr || tr.kind !== 'speakers') return;
+  const list = Array.from(new Set(tr.segs.map(x => x.sp))).sort();
+  if (list.length < 2) { toast('Only one speaker in this transcript.'); return; }
+  const next = list[(list.indexOf(tr.segs[i0].sp) + 1) % list.length];
+  for (let i = i0; i <= i1; i++) tr.segs[i].sp = next;
+  try { await DB.put('transcripts', tr); } catch(e){}
+  try { window.getSelection().removeAllRanges(); } catch(e){}
+  renderTranscript(true);
+  toast('Now ' + spName(tr, next));
+}
+/* Captions mark each change of speaker with ">>". A speaker code says who speaks in each of those turns. */
+function splitTurns(segs){
+  const out = []; let ti = 0, has = false;
+  for (const g of segs){
+    const parts = g.t.split('>>'), n = parts.length, d = Math.max(0, g.e - g.s);
+    parts.forEach((p, k) => {
+      if (k > 0 && has){ ti++; has = false; }
+      const t = p.replace(/\s+/g, ' ').trim();
+      if (!t) return;
+      out.push({ s:g.s + d * (k / n), e:g.s + d * ((k + 1) / n), t, ti });
+      has = true;
+    });
+  }
+  return { pieces:out, turns:has ? ti + 1 : ti };
+}
+async function pasteSpeakers(){
+  const tr = curTr, vid = noteVid; if (!tr) return;
+  const r = await ask({ title:'Paste speakers', ok:'Apply', note:'Paste the speaker code made for this video. You can switch any line afterwards with ⇄.',
+    fields:[{ id:'code', label:'Speaker code', placeholder:'{"v":"…","turns":…}' }] });
+  if (!r || curTr !== tr) return;
+  let c;
+  try { c = JSON.parse(r.code.trim()); } catch(e){ toast('That is not a speaker code.'); return; }
+  if (!c || c.v !== vid){ toast('That code is for a different video.'); return; }
+  const { pieces, turns } = splitTurns(tr.segs);
+  if (turns !== c.turns || typeof c.sp !== 'string' || c.sp.length !== turns){ toast('The code does not match this transcript (' + turns + ' turns).'); return; }
+  const segs = pieces.map(p => ({ s:Math.round(p.s * 100) / 100, e:Math.round(p.e * 100) / 100, t:p.t, sp:'S' + c.sp[p.ti] }));
+  const names = {};
+  for (const k in (c.names || {})) names['S' + String(k).slice(0, 3)] = String(c.names[k]).slice(0, 60);
+  const next = { vid, kind:'speakers', segs, names, at:Date.now() };
+  try { await DB.put('transcripts', next); } catch(e){ toast('Could not save on this device.'); return; }
+  renderTranscript();
+  toast('Speakers applied');
 }
 async function openSettings(){
   const r = await ask({ title:'Transcripts', ok:'Save', fields:[
@@ -2015,12 +2137,14 @@ function readSel(){
   let s0 = a.s, e0 = b.e;
   if (a.w){ const k = edgeWord(segEls[first], rg, true); if (k >= 0) s0 = a.w[k][0]; }
   if (b.w){ const k = edgeWord(segEls[last], rg, false); if (k >= 0) e0 = b.w[k][1]; }
-  return { s:s0, e:e0, lines, text:lines.map(l => l.text).join(' ') };
+  return { s:s0, e:e0, i0:first, i1:last, lines, text:lines.map(l => l.text).join(' ') };
 }
 function checkSel(){
   if (leftTab !== 'tr' || $('trPane').hidden || !$('lib').offsetParent) return;
   const q = readSel(); if (!q) return;
-  bar(fmtT(q.s) + '–' + fmtT(q.e) + '  ' + q.text, [['Save quote', () => saveQuote(false), 'go'], ['Link only', () => saveQuote(true)]], $('lib'));
+  const btns = [['Save quote', () => saveQuote(false), 'go'], ['Link only', () => saveQuote(true)]];
+  if (curTr.kind === 'speakers') btns.push(['Speaker ⇄', () => { const p0 = pend; hideBar(); switchSpeaker(p0.i0, p0.i1); }]);
+  bar(fmtT(q.s) + '–' + fmtT(q.e) + '  ' + q.text, btns, $('lib'));
   pend = q;
 }
 async function saveQuote(linkOnly){
@@ -2195,12 +2319,33 @@ $('askBg').addEventListener('click', e => { if (e.target === $('askBg') && askDo
     onEdit();
   });
   ed.addEventListener('beforeinput', mdShortcut);
+  ed.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+    const s0 = window.getSelection(), n = s0.anchorNode, el = n && (n.nodeType === 1 ? n : n.parentNode);
+    const lab = el && el.closest && el.closest('.co-l');
+    if (!lab || !ed.contains(lab)) return;
+    e.preventDefault();
+    const co = lab.closest('.co'), body = co.querySelector('.co-b');
+    co.setAttribute('data-open', '1');
+    if (!body.firstChild) body.append(h('p', null, h('br')));
+    const r = document.createRange(); r.selectNodeContents(body.firstChild); r.collapse(true);
+    s0.removeAllRanges(); s0.addRange(r); onEdit();
+  });
   ed.addEventListener('paste', e => {
     e.preventDefault();
     const t = (e.clipboardData || window.clipboardData).getData('text/plain');
     if (t) document.execCommand('insertText', false, t);
   });
   ed.addEventListener('click', e => {
+    const tog = e.target.closest && e.target.closest('.co-t'), ico = e.target.closest && e.target.closest('.co-i');
+    if (tog && ed.contains(tog)){ const co = tog.closest('.co'); co.setAttribute('data-open', co.getAttribute('data-open') === '0' ? '1' : '0'); onEdit(); return; }
+    if (ico && ed.contains(ico)){
+      const co = ico.closest('.co'), k = CO_ORDER[(CO_ORDER.indexOf(co.getAttribute('data-k')) + 1) % CO_ORDER.length];
+      const lab = co.querySelector('.co-l'), wasDefault = lab && Object.values(CO_KINDS).some(x => x[1] === lab.textContent.trim());
+      co.setAttribute('data-k', k); ico.textContent = CO_KINDS[k][0];
+      if (wasDefault) lab.textContent = CO_KINDS[k][1];
+      onEdit(); return;
+    }
     const a = e.target.closest ? e.target.closest('a') : null;
     if (!a || !ed.contains(a)){ if (pickedLink) hideBar(); return; }
     e.preventDefault();
@@ -2224,6 +2369,8 @@ $('trBody').addEventListener('click', e => {
     return;
   }
   if (sp){ renameSpeaker(sp.dataset.sp); return; }
+  const sw = e.target.closest('.swap');
+  if (sw){ switchSpeaker(+sw.dataset.i0, +sw.dataset.i1); return; }
   const w = e.target.closest('.w'), sel0 = window.getSelection();
   if (w && sel0 && sel0.isCollapsed){
     const sg = w.parentNode, g = curTr && curTr.segs[+sg.dataset.i];
