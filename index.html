@@ -1511,7 +1511,28 @@ function notesCtx(){
   return c && c.v.vid ? { vid:c.v.vid, title:c.v.title, slot } : null;
 }
 function edBlank(){ const ed = $('editor'); return !ed.textContent.trim() && !ed.querySelector('a.ts,hr,li,blockquote,.co'); }
+/* Put the caret at the start or end of an element. */
+function caretAt(node, start){
+  if (!node) return;
+  const r = document.createRange(); r.selectNodeContents(node); r.collapse(!!start);
+  const s0 = window.getSelection(); s0.removeAllRanges(); s0.addRange(r); lastRange = r.cloneRange();
+}
+/* If editing ever breaks a callout's structure, put the missing parts back. */
+function repairCallouts(){
+  for (const co of $('editor').querySelectorAll('.co')){
+    const k = CO_KINDS[co.getAttribute('data-k')] ? co.getAttribute('data-k') : 'note';
+    let hd = Array.from(co.children).find(c => c.classList.contains('co-h'));
+    if (!hd){ hd = h('div', { class:'co-h' }); co.prepend(hd); }
+    if (!hd.querySelector('.co-t')) hd.prepend(h('span', { class:'co-t', contenteditable:'false', title:'Fold / unfold' }, '▼'));
+    if (!hd.querySelector('.co-i')) hd.querySelector('.co-t').after(h('span', { class:'co-i', contenteditable:'false', title:'Change type' }, CO_KINDS[k][0]));
+    if (!hd.querySelector('.co-l')) hd.append(h('span', { class:'co-l' }, CO_KINDS[k][1]));
+    let bd = Array.from(co.children).find(c => c.classList.contains('co-b'));
+    if (!bd){ bd = h('div', { class:'co-b' }); co.append(bd); }
+    if (!bd.firstChild) bd.append(h('p', null, h('br')));
+  }
+}
 function onEdit(){
+  repairCallouts();
   noteDirty = true;
   $('editor').classList.toggle('blank', edBlank());
   clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 700);
@@ -2321,17 +2342,62 @@ $('askBg').addEventListener('click', e => { if (e.target === $('askBg') && askDo
     onEdit();
   });
   ed.addEventListener('beforeinput', mdShortcut);
+  /* Callout keys: Enter in the title goes into the body; Enter on an empty last line leaves the callout;
+     Backspace/Delete never merge the title with the text around it. */
   ed.addEventListener('keydown', e => {
-    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
-    const s0 = window.getSelection(), n = s0.anchorNode, el = n && (n.nodeType === 1 ? n : n.parentNode);
-    const lab = el && el.closest && el.closest('.co-l');
-    if (!lab || !ed.contains(lab)) return;
-    e.preventDefault();
-    const co = lab.closest('.co'), body = co.querySelector('.co-b');
-    co.setAttribute('data-open', '1');
-    if (!body.firstChild) body.append(h('p', null, h('br')));
-    const r = document.createRange(); r.selectNodeContents(body.firstChild); r.collapse(true);
-    s0.removeAllRanges(); s0.addRange(r); onEdit();
+    if (e.isComposing || (e.key !== 'Enter' && e.key !== 'Backspace' && e.key !== 'Delete')) return;
+    const s0 = window.getSelection(); if (!s0.rangeCount) return;
+    const n = s0.anchorNode, el = n && (n.nodeType === 1 ? n : n.parentNode);
+    if (!el || !el.closest || !ed.contains(el)) return;
+    const lab = el.closest('.co-l'), body = el.closest('.co-b');
+    const edge = (box, start) => {
+      if (!s0.isCollapsed) return false;
+      const r = document.createRange(); r.selectNodeContents(box);
+      if (start) r.setEnd(n, s0.anchorOffset); else r.setStart(n, s0.anchorOffset);
+      return r.toString().length === 0 && !(start ? r.cloneContents().querySelector('a.ts') : r.cloneContents().querySelector('a.ts'));
+    };
+    const lineOf = box => { let x = n; while (x && x.parentNode !== box) x = x.parentNode; return x; };
+    const stop = () => { e.preventDefault(); onEdit(); };
+    if (lab){
+      const co = lab.closest('.co'), bd = co.querySelector('.co-b');
+      if (e.key === 'Enter' && !e.shiftKey){
+        co.setAttribute('data-open', '1');
+        if (!bd.firstChild) bd.append(h('p', null, h('br')));
+        caretAt(bd.firstChild, true); return stop();
+      }
+      if (e.key === 'Backspace' && edge(lab, true)){
+        if (!lab.textContent.trim() && !bd.textContent.trim() && !bd.querySelector('a.ts')){   // empty callout: remove it
+          const pp = h('p', null, h('br')); co.replaceWith(pp); caretAt(pp, true);
+        }
+        return stop();
+      }
+      if (e.key === 'Delete' && edge(lab, false)) return stop();
+      return;
+    }
+    if (body){
+      const line = lineOf(body), co = body.closest('.co');
+      if (e.key === 'Enter' && !e.shiftKey && line && line === body.lastChild && line.nodeName === 'P' && !line.textContent.trim() && !line.querySelector('a.ts') && body.childNodes.length > 1){
+        line.remove();                                   // empty last line: step out below the callout
+        let nx = co.nextElementSibling;
+        if (!nx || nx.nodeName !== 'P' || nx.textContent.trim()){ nx = h('p', null, h('br')); co.after(nx); }
+        caretAt(nx, true); return stop();
+      }
+      if (e.key === 'Backspace' && line && line === body.firstChild && edge(line, true)){
+        if (!line.textContent.trim() && body.childNodes.length > 1){ const nx = line.nextSibling; line.remove(); caretAt(nx, true); }
+        else caretAt(co.querySelector('.co-l'), false);
+        return stop();
+      }
+      if (e.key === 'Delete' && line && line === body.lastChild && edge(line, false)) return stop();
+      return;
+    }
+    const top = lineOf(ed);
+    if (e.key === 'Delete' && top && top.nextElementSibling && top.nextElementSibling.classList.contains('co') && edge(top, false)) return stop();
+    if (e.key === 'Backspace' && top && top.previousElementSibling && top.previousElementSibling.classList.contains('co') && edge(top, true)){
+      const prev = top.previousElementSibling;
+      if (!top.textContent.trim() && !top.querySelector('a.ts')){ top.remove(); }
+      const last = prev.getAttribute('data-open') === '0' ? prev.querySelector('.co-l') : (prev.querySelector('.co-b').lastChild || prev.querySelector('.co-l'));
+      caretAt(last, false); return stop();
+    }
   });
   ed.addEventListener('paste', e => {
     e.preventDefault();
@@ -2340,7 +2406,13 @@ $('askBg').addEventListener('click', e => { if (e.target === $('askBg') && askDo
   });
   ed.addEventListener('click', e => {
     const tog = e.target.closest && e.target.closest('.co-t'), ico = e.target.closest && e.target.closest('.co-i');
-    if (tog && ed.contains(tog)){ const co = tog.closest('.co'); co.setAttribute('data-open', co.getAttribute('data-open') === '0' ? '1' : '0'); onEdit(); return; }
+    if (tog && ed.contains(tog)){
+      const co = tog.closest('.co'), closing = co.getAttribute('data-open') !== '0';
+      co.setAttribute('data-open', closing ? '0' : '1');
+      const sn = window.getSelection().anchorNode;
+      if (closing && sn && co.querySelector('.co-b').contains(sn)) caretAt(co.querySelector('.co-l'), false);   // never type into hidden text
+      onEdit(); return;
+    }
     const hd = e.target.closest && e.target.closest('.co-h');
     if (hd && ed.contains(hd) && !ico && hd.parentNode.getAttribute('data-open') === '0'){   // closed: any click on the heading opens it
       hd.parentNode.setAttribute('data-open', '1'); onEdit(); return;
